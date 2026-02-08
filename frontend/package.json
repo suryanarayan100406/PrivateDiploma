@@ -16,7 +16,13 @@
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
     "tailwind-merge": "^3.4.0",
-    "tailwindcss-animate": "^1.0.7"
+    "tailwindcss-animate": "^1.0.7",
+    "@midnight-ntwrk/midnight-js-lace-connector": "5.0.0",
+    "@midnight-ntwrk/midnight-js-contracts": "5.0.0",
+    "@midnight-ntwrk/midnight-js-types": "5.0.0",
+    "@midnight-ntwrk/midnight-js-utils": "5.0.0",
+    "@midnight-ntwrk/compact-runtime": "5.0.0",
+    "@midnight-ntwrk/ledger-v7": "5.0.0"
   },
   "devDependencies": {
     "@types/react": "^18.3.3",

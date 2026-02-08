@@ -3,21 +3,22 @@ import {
   ShieldCheck, 
   Upload, 
   Fingerprint, 
-  CheckCircle2, 
-  Terminal as TerminalIcon, 
+  Search, 
+  Calendar, 
   User, 
-  Globe, 
-  Eye, 
+  MapPin, 
+  ChevronRight, 
+  Copy, 
+  Check, 
+  FileText, 
+  CheckCircle2, 
+  ShieldAlert, 
+  Cpu, 
+  Database, 
+  Wallet, 
+  Link,
   EyeOff,
-  ChevronRight,
-  Database,
-  Lock,
-  Cpu,
-  Copy,
-  Check,
-  Search,
-  MapPin,
-  Calendar
+  Terminal as TerminalIcon
 } from 'lucide-react';
 
 type Mode = 'user' | 'verifier';
@@ -39,9 +40,28 @@ function App() {
   const [vType, setVType] = useState<VerificationType>('age');
   const [verifyStatus, setVerifyStatus] = useState<'idle' | 'checking' | 'verified' | 'failed'>('idle');
   const [ageThreshold, setAgeThreshold] = useState(18);
+  const [walletAddr, setWalletAddr] = useState<string | null>(null);
+  const [isConnecting, setIsConnecting] = useState(false);
 
   const addLog = (msg: string) => {
     setLogs(prev => [...prev, `[${new Date().toLocaleTimeString()}] ${msg}`]);
+  };
+
+  const connectWallet = async () => {
+    setIsConnecting(true);
+    addLog('System: Requesting Lace Wallet connection...');
+    try {
+      // Simulation of Lace Connector API (Actual: await LaceConnector.connect())
+      setTimeout(() => {
+        const mockAddr = "3midnight1laceaddress992z88x001v5";
+        setWalletAddr(mockAddr);
+        addLog(`Wallet Connected: ${mockAddr.substring(0, 10)}...`);
+        setIsConnecting(false);
+      }, 1500);
+    } catch (err) {
+      addLog('Error: Failed to connect to Lace Wallet.');
+      setIsConnecting(false);
+    }
   };
 
   useEffect(() => {
@@ -75,9 +95,9 @@ function App() {
     setIsProcessing(true);
     addLog('System: Initializing hashing algorithm (SHA-256)...');
     
-    // Concatenate audit data + a simulated secret key
+    // Concatenate audit data + a simulated secret key + Wallet Address
     const secret = "midnight_private_key_sim_2026";
-    const dataString = `${extractedData.name}-${extractedData.dob}-${extractedData.country}-${extractedData.idNumber}-${secret}`;
+    const dataString = `${extractedData.name}-${extractedData.dob}-${extractedData.country}-${extractedData.idNumber}-${secret}-${walletAddr || 'no_wallet'}`;
     
     const msgUint8 = new TextEncoder().encode(dataString);
     const hashBuffer = await crypto.subtle.digest('SHA-256', msgUint8);
@@ -86,7 +106,7 @@ function App() {
     
     setTimeout(() => {
       setUserHash(hashHex);
-      addLog(`System: Hash generated from audited PII.`);
+      addLog(`System: Hash generated from PII + secret + wallet address.`);
       setIsProcessing(false);
       setStep('commit');
     }, 800);
@@ -167,18 +187,29 @@ function App() {
           </h1>
         </div>
 
-        <div className="flex p-1 bg-white/5 border border-white/10 rounded-full">
+        <div className="flex items-center gap-4">
+          <div className="flex p-1 bg-white/5 border border-white/10 rounded-full">
+            <button 
+              onClick={() => setMode('user')}
+              className={`px-8 py-2 rounded-full text-sm font-medium transition-all ${mode === 'user' ? 'bg-primary shadow-lg shadow-primary/20 text-white' : 'text-foreground/60 hover:text-white'}`}
+            >
+              Owner
+            </button>
+            <button 
+              onClick={() => setMode('verifier')}
+              className={`px-8 py-2 rounded-full text-sm font-medium transition-all ${mode === 'verifier' ? 'bg-primary shadow-lg shadow-primary/20 text-white' : 'text-foreground/60 hover:text-white'}`}
+            >
+              Verifier
+            </button>
+          </div>
+
           <button 
-            onClick={() => setMode('user')}
-            className={`px-8 py-2 rounded-full text-sm font-medium transition-all ${mode === 'user' ? 'bg-primary shadow-lg shadow-primary/20 text-white' : 'text-foreground/60 hover:text-white'}`}
+            onClick={connectWallet}
+            disabled={!!walletAddr || isConnecting}
+            className={`flex items-center gap-2 px-6 py-2 rounded-full text-sm font-bold border transition-all ${walletAddr ? 'border-green-500/30 bg-green-500/10 text-green-500' : 'border-white/10 bg-white/5 text-white hover:bg-white/10'}`}
           >
-            I am a User
-          </button>
-          <button 
-            onClick={() => setMode('verifier')}
-            className={`px-8 py-2 rounded-full text-sm font-medium transition-all ${mode === 'verifier' ? 'bg-primary shadow-lg shadow-primary/20 text-white' : 'text-foreground/60 hover:text-white'}`}
-          >
-            I am a Verifier
+            <Wallet className="w-4 h-4" />
+            {isConnecting ? 'Connecting...' : walletAddr ? `${walletAddr.substring(0, 8)}...` : 'Connect Lace'}
           </button>
         </div>
       </div>
@@ -299,7 +330,7 @@ function App() {
                   </div>
 
                   <div className="relative w-full max-w-lg group">
-                    <div className="w-full bg-black/40 border border-white/10 p-6 rounded-2xl font-mono text-primary text-sm wrap-break-word leading-relaxed pr-16 bg-linear-to-r from-black/40 to-primary/5">
+                    <div className="w-full bg-black/40 border border-white/10 p-6 rounded-2xl font-mono text-primary text-sm break-all leading-relaxed pr-16 bg-gradient-to-r from-black/40 to-primary/5">
                       {userHash}
                     </div>
                     <button 
@@ -404,7 +435,7 @@ function App() {
                     <span className="flex items-center justify-center gap-3">
                       {verifyStatus === 'checking' ? (
                         <>
-                          <div className="w-6 h-6 border-3 border-white/30 border-t-white rounded-full animate-spin" />
+                          <div className="w-6 h-6 border-4 border-white/30 border-t-white rounded-full animate-spin" />
                           Consulting Local Ledger...
                         </>
                       ) : `Verify ${vType.charAt(0).toUpperCase() + vType.slice(1)} Requirement`}
@@ -426,7 +457,7 @@ function App() {
                   )}
                 </div>
 
-                <div className="p-6 bg-white/2 border-l-4 border-accent/20 rounded-r-2xl">
+                <div className="p-6 bg-white/5 border-l-4 border-accent/20 rounded-r-2xl">
                   <p className="text-sm text-foreground/60 leading-relaxed">
                     Verify that the user meets the <b>{vType.toUpperCase()}</b> criteria without ever seeing their personal registration data. 
                   </p>
@@ -449,7 +480,7 @@ function App() {
                 { label: 'Blockchain Node', status: 'Healthy', color: 'bg-green-500' },
                 { label: 'Standalone Indexer', status: 'Syncing', color: 'bg-green-500' },
                 { label: 'ZK Prover Engine', status: 'Available', color: 'bg-primary' },
-                { label: 'Identity Store', status: 'Encrypted', color: 'bg-primary' },
+                { label: 'Identity Store', status: 'Encrypted', color: 'bg-white/10' },
               ].map(stack => (
                 <div key={stack.label} className="group cursor-default">
                   <div className="flex items-center justify-between text-sm mb-1">
@@ -465,7 +496,7 @@ function App() {
           </div>
 
           {/* Console */}
-          <div className="terminal-glass flex-1 flex flex-col h-[400px]">
+          <div className="terminal-glass flex-1 flex flex-col min-h-[400px]">
             <div className="terminal-header">
               <div className="flex items-center gap-2">
                 <TerminalIcon className="w-3 h-3" />
@@ -477,17 +508,17 @@ function App() {
                 <div className="w-2.5 h-2.5 rounded-full bg-white/10" />
               </div>
             </div>
-            <div className="log-area space-y-3 p-4">
+            <div className="p-4 space-y-3 overflow-y-auto font-mono text-[11px] leading-relaxed">
               {logs.length === 0 ? (
-                <div className="flex flex-col items-center justify-center h-full gap-4 text-foreground/20">
+                <div className="flex flex-col items-center justify-center h-full gap-4 text-foreground/20 py-12">
                     <Cpu className="w-8 h-8 opacity-20" />
                     <span className="text-[11px] uppercase tracking-widest">Awaiting Operations</span>
                 </div>
               ) : (
                 logs.map((log, i) => (
                   <div key={i} className="flex gap-4 group">
-                    <span className="text-foreground/10 font-mono text-[10px] select-none">#{i.toString().padStart(2, '0')}</span>
-                    <span className="text-foreground/80 wrap-break-word font-mono text-[11px] leading-relaxed group-hover:text-primary transition-all">{log}</span>
+                    <span className="text-foreground/10 select-none">#{i.toString().padStart(2, '0')}</span>
+                    <span className="text-foreground/80 break-all group-hover:text-primary transition-all">{log}</span>
                   </div>
                 ))
               )}

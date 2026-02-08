@@ -173,24 +173,24 @@ export const deploy = async (
   return kycContract;
 };
 
-export const register = async (kycContract: any, commitment: Uint8Array): Promise<FinalizedTxData> => {
+export const register = async (kycContract: any, commitment: Uint8Array, walletAddress: Uint8Array): Promise<FinalizedTxData> => {
   logger.info('Calling register() circuit');
-  const finalizedTxData = await kycContract.callTx.register(commitment);
+  const finalizedTxData = await kycContract.callTx.register(commitment, walletAddress);
   logger.info({ txHash: finalizedTxData.public.txHash }, 'register() tx finalized');
   return finalizedTxData.public;
 };
 
-export const proveIdentity = async (kycContract: any, secret: Uint8Array): Promise<FinalizedTxData> => {
+export const proveIdentity = async (kycContract: any, secret: Uint8Array, walletAddress: Uint8Array): Promise<FinalizedTxData> => {
     logger.info('Calling prove_identity() circuit');
-    const finalizedTxData = await kycContract.callTx.prove_identity(secret);
+    const finalizedTxData = await kycContract.callTx.prove_identity(secret, walletAddress);
     logger.info({ txHash: finalizedTxData.public.txHash }, 'prove_identity() tx finalized');
     return finalizedTxData.public;
 };
 
-export const proveAge = async (kycContract: any, birthYear: number, minAge: number, secret: Uint8Array): Promise<FinalizedTxData> => {
+export const proveAge = async (kycContract: any, birthYear: number, minAge: number, secret: Uint8Array, walletAddress: Uint8Array): Promise<FinalizedTxData> => {
     const currentYear = new Date().getFullYear();
     logger.info({ birthYear, currentYear, minAge }, 'Calling prove_age_eligible() circuit');
-    const finalizedTxData = await kycContract.callTx.prove_age_eligible(currentYear, birthYear, minAge, secret);
+    const finalizedTxData = await kycContract.callTx.prove_age_eligible(currentYear, birthYear, minAge, secret, walletAddress);
     logger.info({ txHash: finalizedTxData.public.txHash }, 'prove_age_eligible() tx finalized');
     return finalizedTxData.public;
 };

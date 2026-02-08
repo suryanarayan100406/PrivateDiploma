@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { MidnightDAppAPI } from './midnight-api';
+import type { MidnightDAppAPI } from './midnight-api';
 import { 
   GraduationCap, 
   Upload, 
@@ -63,7 +63,7 @@ function App() {
   const [requiredDegreeLevel, setRequiredDegreeLevel] = useState('Bachelor');
   const [deployedAddress, setDeployedAddress] = useState<string | null>(null);
   const [credentialSecret, setCredentialSecret] = useState<Uint8Array | null>(null);
-  const midnightApi = useRef<MidnightDAppAPI>(new MidnightDAppAPI());
+  const midnightApi = useRef<MidnightDAppAPI | null>(null);
 
   const addLog = (msg: string) => {
     setLogs(prev => [...prev, `[${new Date().toLocaleTimeString()}] ${msg}`]);
@@ -92,17 +92,32 @@ function App() {
       const { shieldedAddress } = await walletAPI.getShieldedAddresses();
       const addr = shieldedAddress;
       
-      // Initialize Midnight API with the connected wallet
-      await midnightApi.current.initialize(walletAPI);
+      // Try to initialize full Midnight SDK
+      try {
+        const { MidnightDAppAPI } = await import('./midnight-api');
+        midnightApi.current = new MidnightDAppAPI();
+        await midnightApi.current.initialize(walletAPI);
+        setIsMocked(false);
+        addLog('✅ Midnight SDK initialized successfully');
+      } catch (sdkErr: any) {
+        // SDK failed but wallet connected - use demo mode
+        console.warn('SDK init failed, using demo mode:', sdkErr);
+        addLog('⚠️ Running in Demo Mode (SDK modules not fully available)');
+        addLog('💡 Demo mode: Transactions will be simulated');
+        setIsMocked(true);
+      }
       
       setWalletAddr(addr);
-      setIsMocked(false);
-      addLog(`Lace Wallet Connected: ${addr.substring(0, 10)}... (Midnight Network)`);
+      addLog(`✅ Lace Wallet Connected: ${addr.substring(0, 12)}...`);
       setIsConnecting(false);
     } catch (err: any) {
       if (err.message === 'EXTENSION_MISSING') {
         addLog('⚠️ Error: Midnight Lace Wallet not found.');
-        addLog('👉 Please install the Lace Wallet extension to use the real flow.');
+        addLog('👉 Please install the Lace Wallet extension.');
+        addLog('💡 Switching to Demo Mode for testing...');
+        // Enable demo mode without wallet
+        setWalletAddr('demo_0x7a2d48bf6e9a4c12d00d2f8e...');
+        setIsMocked(true);
       } else {
         addLog(`Error: ${err.message || 'Failed to connect to Lace Wallet.'}`);
       }
@@ -182,7 +197,33 @@ function App() {
       return;
     }
     
-    // Real blockchain deployment path
+    // Demo Mode - simulate blockchain transaction
+    if (isMocked || !midnightApi.current) {
+      addLog('Midnight Prover: Generating ZK proof for credential ownership...');
+      addLog(`Midnight Node: Submitting credential registration transaction...`);
+      addLog('🔄 Demo Mode: Simulating blockchain transaction...');
+      
+      // Store in local ledger for demo
+      const ledger = JSON.parse(localStorage.getItem('midnight_diploma_ledger') || '[]');
+      if (!ledger.includes(credentialHash)) {
+        ledger.push(credentialHash);
+        localStorage.setItem('midnight_diploma_ledger', JSON.stringify(ledger));
+      }
+      
+      // Simulate transaction delay
+      setTimeout(() => {
+        const mockTxHash = '0x' + Array.from({length: 64}, () => Math.floor(Math.random() * 16).toString(16)).join('');
+        const mockContractAddr = '0x' + Array.from({length: 40}, () => Math.floor(Math.random() * 16).toString(16)).join('');
+        addLog(`✅ Demo: Credential registered! Tx: ${mockTxHash.substring(0, 18)}...`);
+        addLog(`📍 Contract Address: ${mockContractAddr.substring(0, 18)}...`);
+        setDeployedAddress(mockContractAddr);
+        setIsProcessing(false);
+        setStep('success');
+      }, 2000);
+      return;
+    }
+    
+    // Real blockchain deployment path (SDK fully loaded)
     addLog('Midnight Prover: Generating ZK proof for credential ownership...');
     addLog(`Midnight Node: Submitting credential registration transaction...`);
     
@@ -234,8 +275,8 @@ function App() {
     setVerifyStatus('checking');
     addLog(`Employer: Initiating [${vType.toUpperCase()}] verification for credential ${trimmedHash.substring(0, 16)}...`);
     
-    // REAL ZK PROOF PATH (with Lace Wallet connected)
-    if (deployedAddress && credentialSecret) {
+    // REAL ZK PROOF PATH (with Lace Wallet connected and SDK loaded)
+    if (deployedAddress && credentialSecret && !isMocked && midnightApi.current) {
         addLog(`Midnight Prover: Generating Zero-Knowledge Proof of Credential Eligibility...`);
         try {
             const holderAddressBytes = new Uint8Array(32); // Mock for demo

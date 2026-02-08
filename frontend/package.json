@@ -10,6 +10,7 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "@midnight-ntwrk/compact-js": "^2.4.0",
     "@midnight-ntwrk/compact-runtime": "0.14.0",
     "@midnight-ntwrk/dapp-connector-api": "4.0.0",
     "@midnight-ntwrk/ledger": "4.0.0",

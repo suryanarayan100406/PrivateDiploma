@@ -1,33 +1,48 @@
-// @ts-ignore - Dynamic import for contract
+// Midnight SDK imports - loaded dynamically to prevent crashes
 let Contract: any = null;
 let CompiledContract: any = null;
 let deployContract: any = null;
 let findDeployedContract: any = null;
 let indexerPublicDataProvider: any = null;
 let levelPrivateStateProvider: any = null;
+let midnightLoaded = false;
+let loadError: any = null;
 
-// Lazy load Midnight dependencies to prevent blank page on load errors
-const loadMidnightDeps = async () => {
-  if (!Contract) {
-    try {
-      const contractModule = await import('@contract/managed/diploma/contract/index.js');
-      Contract = contractModule.Contract;
-      
-      const compactJs = await import('@midnight-ntwrk/compact-js');
-      CompiledContract = compactJs.CompiledContract;
-      
-      const contracts = await import('@midnight-ntwrk/midnight-js-contracts');
-      deployContract = contracts.deployContract;
-      findDeployedContract = contracts.findDeployedContract;
-      
-      const indexer = await import('@midnight-ntwrk/midnight-js-indexer-public-data-provider');
-      indexerPublicDataProvider = indexer.indexerPublicDataProvider;
-      
-      const privateState = await import('@midnight-ntwrk/midnight-js-level-private-state-provider');
-      levelPrivateStateProvider = privateState.levelPrivateStateProvider;
-    } catch (e) {
-      console.warn('Midnight dependencies not available, running in demo mode', e);
-    }
+// Try to load Midnight dependencies
+const tryLoadMidnight = async () => {
+  if (midnightLoaded) return true;
+  if (loadError) return false;
+  
+  try {
+    // Load each module separately to identify which one fails
+    console.log('Loading contract module...');
+    const contractMod = await import('@contract/managed/diploma/contract/index.js');
+    Contract = contractMod.Contract;
+    
+    console.log('Loading compact-js...');
+    const compactMod = await import('@midnight-ntwrk/compact-js');
+    CompiledContract = compactMod.CompiledContract;
+    
+    console.log('Loading midnight-js-contracts...');
+    const contractsMod = await import('@midnight-ntwrk/midnight-js-contracts');
+    deployContract = contractsMod.deployContract;
+    findDeployedContract = contractsMod.findDeployedContract;
+    
+    console.log('Loading indexer provider...');
+    const indexerMod = await import('@midnight-ntwrk/midnight-js-indexer-public-data-provider');
+    indexerPublicDataProvider = indexerMod.indexerPublicDataProvider;
+    
+    console.log('Loading private state provider...');
+    const privateMod = await import('@midnight-ntwrk/midnight-js-level-private-state-provider');
+    levelPrivateStateProvider = privateMod.levelPrivateStateProvider;
+    
+    midnightLoaded = true;
+    console.log('All Midnight SDK modules loaded successfully');
+    return true;
+  } catch (e) {
+    loadError = e;
+    console.error('Midnight SDK load error:', e);
+    return false;
   }
 };
 
@@ -54,11 +69,10 @@ export class MidnightDAppAPI {
   constructor() { }
 
   async initialize(walletAPI: any) {
-    // Load Midnight dependencies first
-    await loadMidnightDeps();
-    
-    if (!Contract || !CompiledContract) {
-      throw new Error('Midnight dependencies not available');
+    // Load Midnight SDK
+    const loaded = await tryLoadMidnight();
+    if (!loaded) {
+      throw new Error('Midnight SDK not available - ensure all dependencies are installed');
     }
     
     const config = await walletAPI.getConfiguration();

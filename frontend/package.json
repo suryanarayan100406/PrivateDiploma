@@ -9,6 +9,12 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "@midnight-ntwrk/compact-runtime": "0.14.0",
+    "@midnight-ntwrk/dapp-connector-api": "4.0.0",
+    "@midnight-ntwrk/ledger": "4.0.0",
+    "@midnight-ntwrk/midnight-js-contracts": "3.0.0",
+    "@midnight-ntwrk/midnight-js-types": "3.0.0",
+    "@midnight-ntwrk/midnight-js-utils": "3.0.0",
     "@tailwindcss/vite": "^4.1.18",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
@@ -16,13 +22,7 @@
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
     "tailwind-merge": "^3.4.0",
-    "tailwindcss-animate": "^1.0.7",
-    "@midnight-ntwrk/midnight-js-lace-connector": "5.0.0",
-    "@midnight-ntwrk/midnight-js-contracts": "5.0.0",
-    "@midnight-ntwrk/midnight-js-types": "5.0.0",
-    "@midnight-ntwrk/midnight-js-utils": "5.0.0",
-    "@midnight-ntwrk/compact-runtime": "5.0.0",
-    "@midnight-ntwrk/ledger-v7": "5.0.0"
+    "tailwindcss-animate": "^1.0.7"
   },
   "devDependencies": {
     "@types/react": "^18.3.3",
@@ -32,6 +32,8 @@
     "postcss": "^8.5.6",
     "tailwindcss": "^4.1.18",
     "typescript": "^5.2.2",
-    "vite": "^5.3.4"
+    "vite": "^5.3.4",
+    "vite-plugin-top-level-await": "^1.6.0",
+    "vite-plugin-wasm": "^3.5.0"
   }
 }

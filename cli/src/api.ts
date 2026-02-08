@@ -20,9 +20,9 @@ import {
 } from '@midnight-ntwrk/wallet-sdk-unshielded-wallet';
 import { levelPrivateStateProvider } from '@midnight-ntwrk/midnight-js-level-private-state-provider';
 import { assertIsContractAddress, toHex } from '@midnight-ntwrk/midnight-js-utils';
-import { getNetworkId } from '@midnight-ntwrk/midnight-js-network-id';
 import { CompiledContract } from '@midnight-ntwrk/compact-js';
 import { Buffer } from 'buffer';
+import * as Rx from 'rxjs';
 import {
   MidnightBech32m,
   ShieldedAddress,
@@ -92,18 +92,22 @@ const signTransactionIntents = (
   logger.info('Transaction intents signed successfully');
 };
 
+/**
+ * Create the unified WalletProvider & MidnightProvider for midnight-js.
+ * This bridges the wallet-sdk-facade to the midnight-js contract API.
+ */
 export const createWalletAndMidnightProvider = async (
   ctx: WalletContext,
 ): Promise<WalletProvider & MidnightProvider> => {
   logger.info('Creating Midnight and Wallet providers');
+  const state = await Rx.firstValueFrom(ctx.wallet.state().pipe(Rx.filter((s) => s.isSynced)));
+  
   return {
-    async getCoinPublicKey(): Promise<string> {
-        const state = await ctx.wallet.state().toPromise();
-        return state!.shielded.coinPublicKey.toHexString();
+    getCoinPublicKey() {
+      return state.shielded.coinPublicKey.toHexString();
     },
-    async getEncryptionPublicKey(): Promise<string> {
-        const state = await ctx.wallet.state().toPromise();
-        return state!.shielded.encryptionPublicKey.toHexString();
+    getEncryptionPublicKey() {
+      return state.shielded.encryptionPublicKey.toHexString();
     },
     async balanceTx(tx, ttl?) {
       logger.debug('Balancing transaction');
@@ -123,9 +127,7 @@ export const createWalletAndMidnightProvider = async (
         signTransactionIntents(recipe.balancingTransaction, signFn, 'pre-proof');
       }
 
-      const finalizedTx = await ctx.wallet.finalizeRecipe(recipe);
-      logger.info('Transaction recipe finalized');
-      return finalizedTx;
+      return ctx.wallet.finalizeRecipe(recipe);
     },
     submitTx(tx) {
       logger.info({ txHash: toHex(tx.hash) }, 'Submitting transaction to network');
@@ -151,12 +153,12 @@ export interface WalletContext {
 }
 
 export interface KYCProviders {
-    privateStateProvider: any;
-    publicDataProvider: any;
-    zkConfigProvider: any;
-    proofProvider: any;
-    walletProvider: any;
-    midnightProvider: any;
+  privateStateProvider: any;
+  publicDataProvider: any;
+  zkConfigProvider: any;
+  proofProvider: any;
+  walletProvider: any;
+  midnightProvider: any;
 }
 
 export const deploy = async (
@@ -192,5 +194,12 @@ export const proveAge = async (kycContract: any, birthYear: number, minAge: numb
     logger.info({ birthYear, currentYear, minAge }, 'Calling prove_age_eligible() circuit');
     const finalizedTxData = await kycContract.callTx.prove_age_eligible(currentYear, birthYear, minAge, secret, walletAddress);
     logger.info({ txHash: finalizedTxData.public.txHash }, 'prove_age_eligible() tx finalized');
+    return finalizedTxData.public;
+};
+
+export const proveResidency = async (kycContract: any, requiredCountry: number, userCountry: number, secret: Uint8Array, walletAddress: Uint8Array): Promise<FinalizedTxData> => {
+    logger.info({ requiredCountry, userCountry }, 'Calling prove_residency() circuit');
+    const finalizedTxData = await kycContract.callTx.prove_residency(requiredCountry, userCountry, secret, walletAddress);
+    logger.info({ txHash: finalizedTxData.public.txHash }, 'prove_residency() tx finalized');
     return finalizedTxData.public;
 };

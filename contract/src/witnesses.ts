@@ -1,5 +1,8 @@
-export type KYCPrivateState = {
-  kycSecret: Uint8Array;
+/**
+ * PrivateDiploma - Private state for credential verification
+ */
+export type DiplomaPrivateState = {
+  credentialSecret: Uint8Array;
 };
 
 export const witnesses = {};

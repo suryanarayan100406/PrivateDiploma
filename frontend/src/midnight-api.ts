@@ -1,26 +1,66 @@
-import { Contract } from '../../contract/dist/managed/kyc/contract/index.js';
-import { CompiledContract } from '@midnight-ntwrk/compact-js';
-import { deployContract, findDeployedContract } from '@midnight-ntwrk/midnight-js-contracts';
-import { indexerPublicDataProvider } from '@midnight-ntwrk/midnight-js-indexer-public-data-provider';
-import { levelPrivateStateProvider } from '@midnight-ntwrk/midnight-js-level-private-state-provider';
+// @ts-ignore - Dynamic import for contract
+let Contract: any = null;
+let CompiledContract: any = null;
+let deployContract: any = null;
+let findDeployedContract: any = null;
+let indexerPublicDataProvider: any = null;
+let levelPrivateStateProvider: any = null;
 
-export interface KYCPrivateState {
-  kycSecret: Uint8Array;
+// Lazy load Midnight dependencies to prevent blank page on load errors
+const loadMidnightDeps = async () => {
+  if (!Contract) {
+    try {
+      const contractModule = await import('@contract/managed/diploma/contract/index.js');
+      Contract = contractModule.Contract;
+      
+      const compactJs = await import('@midnight-ntwrk/compact-js');
+      CompiledContract = compactJs.CompiledContract;
+      
+      const contracts = await import('@midnight-ntwrk/midnight-js-contracts');
+      deployContract = contracts.deployContract;
+      findDeployedContract = contracts.findDeployedContract;
+      
+      const indexer = await import('@midnight-ntwrk/midnight-js-indexer-public-data-provider');
+      indexerPublicDataProvider = indexer.indexerPublicDataProvider;
+      
+      const privateState = await import('@midnight-ntwrk/midnight-js-level-private-state-provider');
+      levelPrivateStateProvider = privateState.levelPrivateStateProvider;
+    } catch (e) {
+      console.warn('Midnight dependencies not available, running in demo mode', e);
+    }
+  }
+};
+
+/**
+ * PrivateDiploma - Private state for credential verification
+ */
+export interface DiplomaPrivateState {
+  credentialSecret: Uint8Array;
 }
 
-export interface RegisterResult {
+export interface RegisterCredentialResult {
     txHash: string;
     contractAddress: string;
 }
 
-// Browser-safe Midnight API wrapper
+/**
+ * PrivateDiploma Browser API Wrapper
+ * Enables privacy-preserving credential verification via Lace Wallet
+ */
 export class MidnightDAppAPI {
-  private kycCompiledContract: any;
+  private diplomaCompiledContract: any;
   private providers: any;
 
   constructor() { }
 
   async initialize(walletAPI: any) {
+    // Load Midnight dependencies first
+    await loadMidnightDeps();
+    
+    if (!Contract || !CompiledContract) {
+      throw new Error('Midnight dependencies not available');
+    }
+    
     const config = await walletAPI.getConfiguration();
     
     // ZK Resources fetcher
@@ -52,56 +92,61 @@ export class MidnightDAppAPI {
       }
     };
 
-    this.kycCompiledContract = CompiledContract.make('kyc', Contract);
+    this.diplomaCompiledContract = CompiledContract.make('diploma', Contract);
   }
 
-  async register(commitment: Uint8Array, walletAddress: Uint8Array): Promise<RegisterResult> {
-    const kycContract = await deployContract(this.providers, {
-      compiledContract: this.kycCompiledContract,
-      privateStateId: 'kycPrivateState',
-      initialPrivateState: { kycSecret: commitment },
-      args: [commitment, walletAddress]
+  async registerCredential(commitment: Uint8Array, holderAddress: Uint8Array): Promise<RegisterCredentialResult> {
+    const diplomaContract = await deployContract(this.providers, {
+      compiledContract: this.diplomaCompiledContract,
+      privateStateId: 'diplomaPrivateState',
+      initialPrivateState: { credentialSecret: commitment },
+      args: [commitment, holderAddress]
     });
     
-    const finalizedTx = await kycContract.callTx.register(commitment, walletAddress);
+    const finalizedTx = await diplomaContract.callTx.register_credential(commitment, holderAddress);
     
     return {
         txHash: finalizedTx.public.txHash,
-        contractAddress: kycContract.deployTxData.public.contractAddress
+        contractAddress: diplomaContract.deployTxData.public.contractAddress
     };
   }
 
-  async proveAge(contractAddress: string, birthYear: number, minAge: number, secret: Uint8Array, walletAddress: Uint8Array) {
-    const kycContract = await findDeployedContract(this.providers, {
-      compiledContract: this.kycCompiledContract,
+  async proveGraduationRecency(contractAddress: string, graduationYear: number, maxYearsAgo: number, secret: Uint8Array, holderAddress: Uint8Array) {
+    const diplomaContract = await findDeployedContract(this.providers, {
+      compiledContract: this.diplomaCompiledContract,
       contractAddress,
-      privateStateId: 'kycPrivateState',
+      privateStateId: 'diplomaPrivateState',
     });
 
     const currentYear = BigInt(new Date().getFullYear());
-    const result = await kycContract.callTx.prove_age_eligible(
+    const result = await diplomaContract.callTx.prove_graduation_recency(
         currentYear, 
-        BigInt(birthYear), 
-        BigInt(minAge), 
+        BigInt(graduationYear), 
+        BigInt(maxYearsAgo), 
         secret, 
-        walletAddress
+        holderAddress
     );
     return result.public;
   }
 
-  async proveResidency(contractAddress: string, requiredCountry: number, userCountry: number, secret: Uint8Array, walletAddress: Uint8Array) {
-      const kycContract = await findDeployedContract(this.providers, {
-          compiledContract: this.kycCompiledContract,
+  async proveDegreeLevel(contractAddress: string, requiredLevel: number, holderLevel: number, secret: Uint8Array, holderAddress: Uint8Array) {
+      const diplomaContract = await findDeployedContract(this.providers, {
+          compiledContract: this.diplomaCompiledContract,
           contractAddress,
-          privateStateId: 'kycPrivateState',
+          privateStateId: 'diplomaPrivateState',
       });
 
-      const result = await kycContract.callTx.prove_residency(
-          BigInt(requiredCountry), 
-          BigInt(userCountry), 
+      const result = await diplomaContract.callTx.prove_degree_level(
+          BigInt(requiredLevel), 
+          BigInt(holderLevel), 
           secret, 
-          walletAddress
+          holderAddress
       );
       return result.public;
+  }
+
+  // Legacy alias for backwards compatibility
+  async register(commitment: Uint8Array, walletAddress: Uint8Array) {
+    return this.registerCredential(commitment, walletAddress);
   }
 }

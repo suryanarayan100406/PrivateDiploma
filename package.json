@@ -1,6 +1,7 @@
 {
-  "name": "confidential-kyc",
+  "name": "private-diploma",
   "version": "1.0.0",
+  "description": "PrivateDiploma - Educational credential verification platform on Midnight Network",
   "private": true,
   "type": "module",
   "workspaces": [

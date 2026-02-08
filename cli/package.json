@@ -1,6 +1,7 @@
 {
-  "name": "@confidential-kyc/cli",
+  "name": "@private-diploma/cli",
   "version": "0.1.0",
+  "description": "PrivateDiploma CLI tool for credential management",
   "private": true,
   "type": "module",
   "scripts": {
@@ -8,6 +9,6 @@
     "start": "node dist/index.js"
   },
   "dependencies": {
-    "@confidential-kyc/contract": "*"
+    "@private-diploma/contract": "*"
   }
 }

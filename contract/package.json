@@ -1,6 +1,7 @@
 {
-  "name": "@confidential-kyc/contract",
+  "name": "@private-diploma/contract",
   "version": "0.1.0",
+  "description": "PrivateDiploma smart contract for educational credential verification",
   "license": "Apache-2.0",
   "private": true,
   "type": "module",
@@ -16,8 +17,8 @@
     }
   },
   "scripts": {
-    "compact": "compact compile src/kyc.compact src/managed/kyc",
-    "build": "rm -rf dist && tsc --project tsconfig.build.json && cp -Rf ./src/managed ./dist/managed && cp ./src/kyc.compact ./dist",
+    "compact": "compact compile src/diploma.compact src/managed/diploma",
+    "build": "rm -rf dist && tsc --project tsconfig.build.json && cp -Rf ./src/managed ./dist/managed && cp ./src/diploma.compact ./dist",
     "test": "vitest run",
     "typecheck": "tsc -p tsconfig.json --noEmit"
   },

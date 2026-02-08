@@ -1,0 +1,72 @@
+pragma language_version >= 0.20;
+
+import CompactStandardLibrary;
+
+/**
+ * PrivateDiploma - Educational Credential Verification Platform
+ * 
+ * This contract enables privacy-preserving verification of academic credentials.
+ * Employers can verify degrees without accessing full transcripts.
+ */
+
+/**
+ * The on-chain fingerprint of the credential (degree/certification hash).
+ */
+export ledger credential_commitment: Bytes<32>;
+
+/**
+ * Step 1: Register Credential
+ * Universities/institutions register a credential commitment for a graduate.
+ * The commitment contains hashed degree info without revealing details.
+ */
+export circuit register_credential(commitment: Bytes<32>, holder_address: Bytes<32>): [] {
+    credential_commitment = disclose(commitment);
+}
+
+/**
+ * Step 2: Prove Credential Ownership
+ * Graduate proves they own the credential without revealing details.
+ */
+export circuit prove_credential_ownership(secret: Bytes<32>, holder_address: Bytes<32>): [] {
+    assert(credential_commitment == persistentHash<Bytes<32>>(secret), "Credential verification failed: Secret does not match commitment");
+}
+
+/**
+ * Step 3: Prove Graduation Year Eligibility
+ * Verify that graduation occurred within a certain timeframe.
+ * Useful for: "graduated within last 5 years" type requirements.
+ */
+export circuit prove_graduation_recency(current_year: Uint<16>, graduation_year: Uint<32>, max_years_ago: Uint<16>, secret: Bytes<32>, holder_address: Bytes<32>): [] {
+    assert(credential_commitment == persistentHash<Bytes<32>>(secret), "Credential mismatch");
+    const cy32 = current_year as Uint<32>;
+    const max32 = max_years_ago as Uint<32>;
+    assert(cy32 - graduation_year <= max32, "Graduation Recency Requirement Not Met: Degree too old");
+}
+
+/**
+ * Step 4: Prove Degree Level
+ * Verify the holder has at least a certain degree level without revealing exact degree.
+ * Levels: 1=Associate, 2=Bachelor, 3=Master, 4=Doctorate, 5=Professional
+ */
+export circuit prove_degree_level(required_level: Uint<16>, holder_level: Uint<16>, secret: Bytes<32>, holder_address: Bytes<32>): [] {
+    assert(credential_commitment == persistentHash<Bytes<32>>(secret), "Credential mismatch");
+    assert(holder_level >= required_level, "Degree Level Requirement Not Met: Insufficient credential level");
+}
+
+/**
+ * Step 5: Prove Accredited Institution
+ * Verify the credential is from an accredited institution.
+ * Institution codes are registered in an external registry.
+ */
+export circuit prove_accredited_institution(required_accreditation: Uint<16>, institution_accreditation: Uint<16>, secret: Bytes<32>, holder_address: Bytes<32>): [] {
+    assert(credential_commitment == persistentHash<Bytes<32>>(secret), "Credential mismatch");
+    assert(institution_accreditation == required_accreditation, "Accreditation Requirement Not Met: Institution not accredited");
+}
+
+/**
+ * Step 6: Generic Credential Verification
+ * Employer verifies a claimed credential hash matches on-chain record.
+ */
+export circuit verify_credential(claimed_hash: Bytes<32>): [] {
+    assert(credential_commitment == claimed_hash, "Verification Failed: On-chain credential does not match provided proof");
+}

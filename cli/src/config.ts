@@ -1,3 +1,6 @@
+/**
+ * PrivateDiploma Network Configuration
+ */
 export interface Config {
   readonly midnightNodeUrl: string;
   readonly indexerUrl: string;
@@ -16,5 +19,8 @@ export const preprodConfig: Config = {
   midnightNodeUrl: 'https://rpc.preprod.midnight.network',
   indexerUrl: 'https://indexer.preprod.midnight.network',
   indexerWebsocketUrl: 'wss://indexer.preprod.midnight.network/ws',
-  proofServerUrl: 'http://localhost:6300', // Still assuming local proof server for preprod
+  proofServerUrl: 'http://localhost:6300', // Local proof server for preprod
 };
+
+// Alias for backwards compatibility
+export const PreprodConfig = preprodConfig;

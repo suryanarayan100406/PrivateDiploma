@@ -1,5 +1,5 @@
 import { type ContractAddress } from '@midnight-ntwrk/compact-runtime';
-import { KYC, type KYCPrivateState, witnesses } from '@confidential-kyc/contract';
+import { Diploma, type DiplomaPrivateState, witnesses } from '@private-diploma/contract';
 import * as ledger from '@midnight-ntwrk/ledger-v7';
 import { unshieldedToken } from '@midnight-ntwrk/ledger-v7';
 import { deployContract, findDeployedContract } from '@midnight-ntwrk/midnight-js-contracts';
@@ -137,10 +137,10 @@ export const createWalletAndMidnightProvider = async (
 };
 
 // Contract configuration
-const zkConfigPath = path.resolve(__dirname, '../../contract/src/managed/kyc');
-logger.debug({ zkConfigPath }, 'Loading ZK assets');
+const zkConfigPath = path.resolve(__dirname, '../../contract/src/managed/diploma');
+logger.debug({ zkConfigPath }, 'Loading ZK assets for PrivateDiploma');
 
-const kycCompiledContract = CompiledContract.make('kyc', KYC.Contract).pipe(
+const diplomaCompiledContract = CompiledContract.make('diploma', Diploma.Contract).pipe(
   CompiledContract.withVacantWitnesses,
   CompiledContract.withCompiledFileAssets(zkConfigPath),
 );
@@ -152,7 +152,7 @@ export interface WalletContext {
   unshieldedKeystore: UnshieldedKeystore;
 }
 
-export interface KYCProviders {
+export interface DiplomaProviders {
   privateStateProvider: any;
   publicDataProvider: any;
   zkConfigProvider: any;
@@ -162,44 +162,44 @@ export interface KYCProviders {
 }
 
 export const deploy = async (
-  providers: KYCProviders,
+  providers: DiplomaProviders,
   commitment: Uint8Array,
 ): Promise<any> => {
-  logger.info('Deploying KYC identity contract');
-  const kycContract = await deployContract(providers, {
-    compiledContract: kycCompiledContract,
-    privateStateId: 'kycPrivateState',
-    initialPrivateState: { kycSecret: commitment },
+  logger.info('Deploying PrivateDiploma credential contract');
+  const diplomaContract = await deployContract(providers, {
+    compiledContract: diplomaCompiledContract,
+    privateStateId: 'diplomaPrivateState',
+    initialPrivateState: { credentialSecret: commitment },
   });
-  logger.info({ address: kycContract.deployTxData.public.contractAddress }, 'KYC contract deployed successfully');
-  return kycContract;
+  logger.info({ address: diplomaContract.deployTxData.public.contractAddress }, 'Credential contract deployed successfully');
+  return diplomaContract;
 };
 
-export const register = async (kycContract: any, commitment: Uint8Array, walletAddress: Uint8Array): Promise<FinalizedTxData> => {
-  logger.info('Calling register() circuit');
-  const finalizedTxData = await kycContract.callTx.register(commitment, walletAddress);
-  logger.info({ txHash: finalizedTxData.public.txHash }, 'register() tx finalized');
+export const registerCredential = async (diplomaContract: any, commitment: Uint8Array, holderAddress: Uint8Array): Promise<FinalizedTxData> => {
+  logger.info('Calling register_credential() circuit');
+  const finalizedTxData = await diplomaContract.callTx.register_credential(commitment, holderAddress);
+  logger.info({ txHash: finalizedTxData.public.txHash }, 'register_credential() tx finalized');
   return finalizedTxData.public;
 };
 
-export const proveIdentity = async (kycContract: any, secret: Uint8Array, walletAddress: Uint8Array): Promise<FinalizedTxData> => {
-    logger.info('Calling prove_identity() circuit');
-    const finalizedTxData = await kycContract.callTx.prove_identity(secret, walletAddress);
-    logger.info({ txHash: finalizedTxData.public.txHash }, 'prove_identity() tx finalized');
+export const proveCredentialOwnership = async (diplomaContract: any, secret: Uint8Array, holderAddress: Uint8Array): Promise<FinalizedTxData> => {
+    logger.info('Calling prove_credential_ownership() circuit');
+    const finalizedTxData = await diplomaContract.callTx.prove_credential_ownership(secret, holderAddress);
+    logger.info({ txHash: finalizedTxData.public.txHash }, 'prove_credential_ownership() tx finalized');
     return finalizedTxData.public;
 };
 
-export const proveAge = async (kycContract: any, birthYear: number, minAge: number, secret: Uint8Array, walletAddress: Uint8Array): Promise<FinalizedTxData> => {
+export const proveGraduationRecency = async (diplomaContract: any, graduationYear: number, maxYearsAgo: number, secret: Uint8Array, holderAddress: Uint8Array): Promise<FinalizedTxData> => {
     const currentYear = new Date().getFullYear();
-    logger.info({ birthYear, currentYear, minAge }, 'Calling prove_age_eligible() circuit');
-    const finalizedTxData = await kycContract.callTx.prove_age_eligible(currentYear, birthYear, minAge, secret, walletAddress);
-    logger.info({ txHash: finalizedTxData.public.txHash }, 'prove_age_eligible() tx finalized');
+    logger.info({ graduationYear, currentYear, maxYearsAgo }, 'Calling prove_graduation_recency() circuit');
+    const finalizedTxData = await diplomaContract.callTx.prove_graduation_recency(currentYear, graduationYear, maxYearsAgo, secret, holderAddress);
+    logger.info({ txHash: finalizedTxData.public.txHash }, 'prove_graduation_recency() tx finalized');
     return finalizedTxData.public;
 };
 
-export const proveResidency = async (kycContract: any, requiredCountry: number, userCountry: number, secret: Uint8Array, walletAddress: Uint8Array): Promise<FinalizedTxData> => {
-    logger.info({ requiredCountry, userCountry }, 'Calling prove_residency() circuit');
-    const finalizedTxData = await kycContract.callTx.prove_residency(requiredCountry, userCountry, secret, walletAddress);
-    logger.info({ txHash: finalizedTxData.public.txHash }, 'prove_residency() tx finalized');
+export const proveDegreeLevel = async (diplomaContract: any, requiredLevel: number, holderLevel: number, secret: Uint8Array, holderAddress: Uint8Array): Promise<FinalizedTxData> => {
+    logger.info({ requiredLevel, holderLevel }, 'Calling prove_degree_level() circuit');
+    const finalizedTxData = await diplomaContract.callTx.prove_degree_level(requiredLevel, holderLevel, secret, holderAddress);
+    logger.info({ txHash: finalizedTxData.public.txHash }, 'prove_degree_level() tx finalized');
     return finalizedTxData.public;
 };

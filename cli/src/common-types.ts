@@ -1,14 +1,11 @@
-import { KYC, type KYCPrivateState } from '@confidential-kyc/contract';
+import { Diploma, type DiplomaPrivateState } from '@private-diploma/contract';
 import type { MidnightProviders } from '@midnight-ntwrk/midnight-js-types';
 import type { DeployedContract, FoundContract } from '@midnight-ntwrk/midnight-js-contracts';
 import type { ImpureCircuitId } from '@midnight-ntwrk/compact-js';
 
-export type KYCCircuits = ImpureCircuitId<KYC.Contract<KYCPrivateState>>;
-
-export const KYCPrivateStateId = 'kycPrivateState';
-
-export type KYCProviders = MidnightProviders<KYCCircuits, typeof KYCPrivateStateId, KYCPrivateState>;
-
-export type KYCContract = KYC.Contract<KYCPrivateState>;
-
-export type DeployedKYCContract = DeployedContract<KYCContract> | FoundContract<KYCContract>;
+// PrivateDiploma types
+export type DiplomaCircuits = ImpureCircuitId<Diploma.Contract<DiplomaPrivateState>>;
+export const DiplomaPrivateStateId = 'diplomaPrivateState';
+export type DiplomaProviders = MidnightProviders<DiplomaCircuits, typeof DiplomaPrivateStateId, DiplomaPrivateState>;
+export type DiplomaContract = Diploma.Contract<DiplomaPrivateState>;
+export type DeployedDiplomaContract = DeployedContract<DiplomaContract> | FoundContract<DiplomaContract>;

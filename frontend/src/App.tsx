@@ -1,13 +1,13 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { MidnightDAppAPI } from './midnight-api';
 import { 
-  ShieldCheck, 
+  GraduationCap, 
   Upload, 
-  Fingerprint, 
+  Award, 
   Search, 
   Calendar, 
-  User, 
-  MapPin, 
+  Building2, 
+  BookOpen, 
   ChevronRight, 
   Copy, 
   Check, 
@@ -24,41 +24,46 @@ import {
   ExternalLink
 } from 'lucide-react';
 
-type Mode = 'user' | 'verifier';
+type Mode = 'graduate' | 'employer';
 type Step = 'upload' | 'extract' | 'commit' | 'success';
-type VerificationType = 'age' | 'identity' | 'residency';
+type VerificationType = 'recency' | 'ownership' | 'level';
+
+// Degree level mapping
+const DEGREE_LEVELS: Record<string, number> = {
+  'Associate': 1,
+  'Bachelor': 2,
+  'Master': 3,
+  'Doctorate': 4,
+  'Professional': 5
+};
 
 function App() {
-  const [mode, setMode] = useState<Mode>('user');
+  const [mode, setMode] = useState<Mode>('graduate');
   const [step, setStep] = useState<Step>('upload');
-  const [extractedData, setExtractedData] = useState({ name: '', dob: '', idNumber: '', country: 'United States' });
+  const [extractedData, setExtractedData] = useState({ 
+    institution: '', 
+    degreeType: 'Bachelor', 
+    fieldOfStudy: '', 
+    graduationYear: '2024' 
+  });
   const [isProcessing, setIsProcessing] = useState(false);
   const [logs, setLogs] = useState<string[]>([]);
   const logEndRef = useRef<HTMLDivElement>(null);
-  const [userHash, setUserHash] = useState('0x7a2d48bf6e9a4c12d00d2f8e9a4c12d00d2f8e9a4c12d00d2f8e9a4c12d00d2');
+  const [credentialHash, setCredentialHash] = useState('0x7a2d48bf6e9a4c12d00d2f8e9a4c12d00d2f8e9a4c12d00d2f8e9a4c12d00d2');
   const [hasCopied, setHasCopied] = useState(false);
 
-  // Verifier State
+  // Employer/Verifier State
   const [verifierHash, setVerifierHash] = useState('');
-  const [vType, setVType] = useState<VerificationType>('age');
+  const [vType, setVType] = useState<VerificationType>('recency');
   const [verifyStatus, setVerifyStatus] = useState<'idle' | 'checking' | 'verified' | 'failed'>('idle');
-  const [ageThreshold, setAgeThreshold] = useState(18);
+  const [maxYearsAgo, setMaxYearsAgo] = useState(5);
   const [walletAddr, setWalletAddr] = useState<string | null>(null);
   const [isConnecting, setIsConnecting] = useState(false);
   const [isMocked, setIsMocked] = useState(false);
-  const [geoRequired, setGeoRequired] = useState('United States');
+  const [requiredDegreeLevel, setRequiredDegreeLevel] = useState('Bachelor');
   const [deployedAddress, setDeployedAddress] = useState<string | null>(null);
-  const [kycSecret, setKycSecret] = useState<Uint8Array | null>(null);
+  const [credentialSecret, setCredentialSecret] = useState<Uint8Array | null>(null);
   const midnightApi = useRef<MidnightDAppAPI>(new MidnightDAppAPI());
-
-  const COUNTRY_MAP: Record<string, number> = {
-    'United States': 1,
-    'United Kingdom': 2,
-    'India': 3,
-    'Japan': 4,
-    'Germany': 5,
-    'Other': 99
-  };
 
   const addLog = (msg: string) => {
     setLogs(prev => [...prev, `[${new Date().toLocaleTimeString()}] ${msg}`]);
@@ -81,7 +86,7 @@ function App() {
         throw new Error('EXTENSION_MISSING');
       }
 
-      addLog('System: Requesting connection from Lace...');
+      addLog('System: Requesting connection from Lace Wallet...');
       const walletAPI = await midnight.mnLace.connect('undeployed');
       
       const { shieldedAddress } = await walletAPI.getShieldedAddresses();
@@ -92,12 +97,12 @@ function App() {
       
       setWalletAddr(addr);
       setIsMocked(false);
-      addLog(`Wallet Connected: ${addr.substring(0, 10)}... (Real Connection)`);
+      addLog(`Lace Wallet Connected: ${addr.substring(0, 10)}... (Midnight Network)`);
       setIsConnecting(false);
     } catch (err: any) {
       if (err.message === 'EXTENSION_MISSING') {
         addLog('⚠️ Error: Midnight Lace Wallet not found.');
-        addLog('👉 Please install the extension to use the real flow.');
+        addLog('👉 Please install the Lace Wallet extension to use the real flow.');
       } else {
         addLog(`Error: ${err.message || 'Failed to connect to Lace Wallet.'}`);
       }
@@ -111,21 +116,26 @@ function App() {
   }, [logs]);
 
   const copyToClipboard = () => {
-    navigator.clipboard.writeText(userHash);
+    navigator.clipboard.writeText(credentialHash);
     setHasCopied(true);
-    addLog('System: Hash copied to clipboard.');
+    addLog('System: Credential hash copied to clipboard.');
     setTimeout(() => setHasCopied(false), 2000);
   };
 
-  // Simulated Identity Processing
+  // Simulated Credential Document Processing
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
       setIsProcessing(true);
       addLog(`File attached: ${e.target.files[0].name}`);
-      addLog('Secure Sandbox: Processing document locally...');
+      addLog('Secure Sandbox: Processing credential document locally...');
       setTimeout(() => {
-        setExtractedData({ name: 'Satoshi Nakamoto', dob: '1975-04-05', idNumber: 'IDX-992-001', country: 'United States' });
-        addLog('OCR Engine: PII extraction successful.');
+        setExtractedData({ 
+          institution: 'Massachusetts Institute of Technology', 
+          degreeType: 'Bachelor', 
+          fieldOfStudy: 'Computer Science', 
+          graduationYear: '2024' 
+        });
+        addLog('OCR Engine: Credential extraction successful.');
         setIsProcessing(false);
         setStep('extract');
       }, 1500);
@@ -135,14 +145,14 @@ function App() {
   // --- Real Hashing Logic (SubtleCrypto) ---
   const calculateHash = async () => {
     setIsProcessing(true);
-    addLog('System: Generating Zero-Knowledge commitment secret...');
+    addLog('System: Generating Zero-Knowledge commitment for credential...');
     const secret = window.crypto.getRandomValues(new Uint8Array(32));
-    setKycSecret(secret);
+    setCredentialSecret(secret);
     const hashBuffer = await crypto.subtle.digest('SHA-256', secret);
     const hashHex = '0x' + Array.from(new Uint8Array(hashBuffer)).map(b => b.toString(16).padStart(2, '0')).join('');
     setTimeout(() => {
-      setUserHash(hashHex);
-      addLog("System: Commitment generated: " + hashHex.substring(0, 16) + "...");
+      setCredentialHash(hashHex);
+      addLog("System: Credential commitment generated: " + hashHex.substring(0, 16) + "...");
       setIsProcessing(false);
       setStep('commit');
     }, 1200);
@@ -154,18 +164,18 @@ function App() {
     // Check if wallet is connected (required for real blockchain deployment)
     if (!walletAddr) {
       addLog('⚠️ Warning: Lace Wallet not connected. Using SIMULATION mode.');
-      addLog('💡 Connect wallet for REAL Zero-Knowledge Proof generation.');
-      addLog('Simulation: Storing commitment in localStorage (NOT on blockchain)...');
+      addLog('💡 Connect Lace Wallet for REAL Zero-Knowledge Proof generation on Midnight.');
+      addLog('Simulation: Storing credential commitment in localStorage (NOT on blockchain)...');
       
       // Fallback to simulation
-      const ledger = JSON.parse(localStorage.getItem('midnight_sim_ledger') || '[]');
-      if (!ledger.includes(userHash)) {
-        ledger.push(userHash);
-        localStorage.setItem('midnight_sim_ledger', JSON.stringify(ledger));
+      const ledger = JSON.parse(localStorage.getItem('midnight_diploma_ledger') || '[]');
+      if (!ledger.includes(credentialHash)) {
+        ledger.push(credentialHash);
+        localStorage.setItem('midnight_diploma_ledger', JSON.stringify(ledger));
       }
       
       setTimeout(() => {
-        addLog(`Simulation Complete: Hash stored locally (not on Midnight blockchain)`);
+        addLog(`Simulation Complete: Credential hash stored locally (not on Midnight blockchain)`);
         setIsProcessing(false);
         setStep('success');
       }, 1500);
@@ -173,24 +183,24 @@ function App() {
     }
     
     // Real blockchain deployment path
-    addLog('Midnight Prover: Generating ZK proof for commitment ownership...');
-    addLog(`Midnight Node: Submitting registration transaction to local ledger...`);
+    addLog('Midnight Prover: Generating ZK proof for credential ownership...');
+    addLog(`Midnight Node: Submitting credential registration transaction...`);
     
     try {
-      // Convert userHash (from calculation) back to Uint8Array for the circuit
-      const commitment = new Uint8Array(userHash.replace('0x', '').match(/.{1,2}/g)!.map(byte => parseInt(byte, 16)));
-      const walletAddressBytes = new Uint8Array(32); // Mocked for now, in real it should match the wallet
+      // Convert credentialHash (from calculation) back to Uint8Array for the circuit
+      const commitment = new Uint8Array(credentialHash.replace('0x', '').match(/.{1,2}/g)!.map(byte => parseInt(byte, 16)));
+      const holderAddressBytes = new Uint8Array(32); // Mocked for now, in real it should match the wallet
       
-      const finalizedTx = await midnightApi.current.register(commitment, walletAddressBytes);
+      const finalizedTx = await midnightApi.current.registerCredential(commitment, holderAddressBytes);
       
-      addLog(`Success: Identity anchored on-chain! Tx: ${finalizedTx.txHash.substring(0, 10)}...`);
+      addLog(`Success: Credential anchored on Midnight! Tx: ${finalizedTx.txHash.substring(0, 10)}...`);
       setDeployedAddress(finalizedTx.contractAddress as string);
       
       // Still push to sim ledger for verifier ease in this demo
-      const ledger = JSON.parse(localStorage.getItem('midnight_sim_ledger') || '[]');
-      if (!ledger.includes(userHash)) {
-        ledger.push(userHash);
-        localStorage.setItem('midnight_sim_ledger', JSON.stringify(ledger));
+      const ledger = JSON.parse(localStorage.getItem('midnight_diploma_ledger') || '[]');
+      if (!ledger.includes(credentialHash)) {
+        ledger.push(credentialHash);
+        localStorage.setItem('midnight_diploma_ledger', JSON.stringify(ledger));
       }
       
       setIsProcessing(false);
@@ -207,7 +217,7 @@ function App() {
     // Check if hash is empty
     if (!trimmedHash) {
       setVerifyStatus('failed');
-      addLog('❌ Verification Error: No hash provided. Please paste a valid commitment hash.');
+      addLog('❌ Verification Error: No credential hash provided. Please paste a valid commitment hash.');
       return;
     }
     
@@ -215,33 +225,33 @@ function App() {
     const hexPattern = /^0x[0-9a-fA-F]{64}$/;
     if (!hexPattern.test(trimmedHash)) {
       setVerifyStatus('failed');
-      addLog('❌ Verification Error: Invalid hash format.');
+      addLog('❌ Verification Error: Invalid credential hash format.');
       addLog('   Expected: 0x + 64 hexadecimal characters (e.g., 0x7a2d48bf...)');
       addLog(`   Received: "${trimmedHash.substring(0, 30)}${trimmedHash.length > 30 ? '...' : ''}"`);
       return;
     }
     
     setVerifyStatus('checking');
-    addLog(`Verifier: Initiating [${vType.toUpperCase()}] verification for hash ${trimmedHash.substring(0, 16)}...`);
+    addLog(`Employer: Initiating [${vType.toUpperCase()}] verification for credential ${trimmedHash.substring(0, 16)}...`);
     
     // REAL ZK PROOF PATH (with Lace Wallet connected)
-    if (deployedAddress && kycSecret) {
-        addLog(`Midnight Prover: Generating Zero-Knowledge Proof of Eligibility...`);
+    if (deployedAddress && credentialSecret) {
+        addLog(`Midnight Prover: Generating Zero-Knowledge Proof of Credential Eligibility...`);
         try {
-            const walletAddressBytes = new Uint8Array(32); // Mock for demo
+            const holderAddressBytes = new Uint8Array(32); // Mock for demo
             let result;
             
-            if (vType === 'age') {
-                const birthYear = new Date(extractedData.dob).getFullYear();
-                result = await midnightApi.current.proveAge(deployedAddress, birthYear, ageThreshold, kycSecret!, walletAddressBytes);
-            } else if (vType === 'residency') {
-                const reqCountryCode = COUNTRY_MAP[geoRequired] || 99;
-                const userCountryCode = COUNTRY_MAP[extractedData.country] || 99;
-                result = await midnightApi.current.proveResidency(deployedAddress, reqCountryCode, userCountryCode, kycSecret!, walletAddressBytes);
+            if (vType === 'recency') {
+                const graduationYear = parseInt(extractedData.graduationYear);
+                result = await midnightApi.current.proveGraduationRecency(deployedAddress, graduationYear, maxYearsAgo, credentialSecret!, holderAddressBytes);
+            } else if (vType === 'level') {
+                const reqLevel = DEGREE_LEVELS[requiredDegreeLevel] || 2;
+                const holderLevel = DEGREE_LEVELS[extractedData.degreeType] || 2;
+                result = await midnightApi.current.proveDegreeLevel(deployedAddress, reqLevel, holderLevel, credentialSecret!, holderAddressBytes);
             }
             
             setVerifyStatus('verified');
-            addLog(`✅ Success: ZK Proof verified on-chain! Identity is ${vType === 'age' ? 'age-eligible' : 'residency-cleared'}.`);
+            addLog(`✅ Success: ZK Proof verified on Midnight! Credential is ${vType === 'recency' ? 'recent enough' : 'level-qualified'}.`);
             return;
         } catch (err: any) {
             addLog(`❌ Error: ZK Proof generation/verification failed. ${err.message}`);
@@ -251,16 +261,16 @@ function App() {
     }
 
     // SIMULATION PATH (when wallet not connected)
-    addLog('⚠️ Simulation Mode: Consulting Local Ledger (NOT on blockchain)...');
+    addLog('⚠️ Simulation Mode: Consulting Local Ledger (NOT on Midnight blockchain)...');
     setTimeout(() => {
       // Step 1: Check if hash exists in ledger
-      const ledger = JSON.parse(localStorage.getItem('midnight_sim_ledger') || '[]');
+      const ledger = JSON.parse(localStorage.getItem('midnight_diploma_ledger') || '[]');
       const isRegistered = ledger.includes(trimmedHash);
-      const isCurrentSession = trimmedHash.toLowerCase() === userHash.trim().toLowerCase();
+      const isCurrentSession = trimmedHash.toLowerCase() === credentialHash.trim().toLowerCase();
 
       if (!isRegistered && !isCurrentSession) {
         setVerifyStatus('failed');
-        addLog('❌ Verification Failed: Hash not found in ledger. User has not registered this identity.');
+        addLog('❌ Verification Failed: Credential not found in ledger. Graduate has not registered this credential.');
         return;
       }
 
@@ -270,30 +280,32 @@ function App() {
         // We have access to extractedData for current session
         let requirementMet = false;
         
-        if (vType === 'age') {
-          const birthYear = new Date(extractedData.dob).getFullYear();
+        if (vType === 'recency') {
+          const graduationYear = parseInt(extractedData.graduationYear);
           const currentYear = new Date().getFullYear();
-          const userAge = currentYear - birthYear;
-          requirementMet = userAge >= ageThreshold;
+          const yearsAgo = currentYear - graduationYear;
+          requirementMet = yearsAgo <= maxYearsAgo;
           
           if (requirementMet) {
-            addLog(`✅ Simulation Success: User age (${userAge}) meets ${ageThreshold}+ requirement.`);
-            addLog(`   Note: In REAL mode, age would be hidden via Zero-Knowledge Proof.`);
+            addLog(`✅ Simulation Success: Graduated ${yearsAgo} years ago, meets ${maxYearsAgo}-year recency requirement.`);
+            addLog(`   Note: In REAL mode, graduation year would be hidden via Zero-Knowledge Proof.`);
           } else {
-            addLog(`❌ Verification Failed: User age (${userAge}) does not meet ${ageThreshold}+ requirement.`);
+            addLog(`❌ Verification Failed: Graduated ${yearsAgo} years ago, does not meet ${maxYearsAgo}-year recency requirement.`);
           }
-        } else if (vType === 'identity') {
-          requirementMet = true; // Identity check just confirms ownership
-          addLog(`✅ Simulation Success: Identity ownership confirmed.`);
+        } else if (vType === 'ownership') {
+          requirementMet = true; // Ownership check just confirms credential ownership
+          addLog(`✅ Simulation Success: Credential ownership confirmed.`);
           addLog(`   Note: In REAL mode, this uses cryptographic proof of private key.`);
-        } else if (vType === 'residency') {
-          requirementMet = extractedData.country === geoRequired;
+        } else if (vType === 'level') {
+          const reqLevel = DEGREE_LEVELS[requiredDegreeLevel] || 2;
+          const holderLevel = DEGREE_LEVELS[extractedData.degreeType] || 2;
+          requirementMet = holderLevel >= reqLevel;
           
           if (requirementMet) {
-            addLog(`✅ Simulation Success: User residence (${extractedData.country}) matches requirement (${geoRequired}).`);
-            addLog(`   Note: In REAL mode, country would be hidden via Zero-Knowledge Proof.`);
+            addLog(`✅ Simulation Success: Degree level (${extractedData.degreeType}) meets ${requiredDegreeLevel}+ requirement.`);
+            addLog(`   Note: In REAL mode, exact degree would be hidden via Zero-Knowledge Proof.`);
           } else {
-            addLog(`❌ Verification Failed: User residence (${extractedData.country}) does not match requirement (${geoRequired}).`);
+            addLog(`❌ Verification Failed: Degree level (${extractedData.degreeType}) does not meet ${requiredDegreeLevel}+ requirement.`);
           }
         }
         
@@ -301,9 +313,9 @@ function App() {
       } else {
         // Hash is in ledger but not current session - we can't verify requirements in simulation
         setVerifyStatus('failed');
-        addLog('❌ Simulation Limitation: Cannot verify requirements for non-current session users.');
-        addLog('   Connect Lace Wallet for REAL Zero-Knowledge Proof verification.');
-        addLog('   In real mode, verifier would receive cryptographic proof without seeing private data.');
+        addLog('❌ Simulation Limitation: Cannot verify requirements for non-current session credentials.');
+        addLog('   Connect Lace Wallet for REAL Zero-Knowledge Proof verification on Midnight.');
+        addLog('   In real mode, employer would receive cryptographic proof without seeing private academic data.');
       }
     }, 2500);
   };
@@ -320,26 +332,26 @@ function App() {
       <div className="flex flex-col items-center gap-6 mb-12 w-full max-w-xl text-center">
         <div className="flex items-center gap-3">
           <div className="p-2 bg-primary/20 rounded-xl border border-primary/30">
-            <ShieldCheck className="w-8 h-8 text-primary" />
+            <GraduationCap className="w-8 h-8 text-primary" />
           </div>
           <h1 className="text-3xl font-bold tracking-tight text-white">
-            Midnight Identity
+            PrivateDiploma
           </h1>
         </div>
 
         <div className="flex items-center gap-4">
           <div className="flex p-1 bg-white/5 border border-white/10 rounded-full">
             <button 
-              onClick={() => setMode('user')}
-              className={`px-8 py-2 rounded-full text-sm font-medium transition-all ${mode === 'user' ? 'bg-primary shadow-lg shadow-primary/20 text-white' : 'text-foreground/60 hover:text-white'}`}
+              onClick={() => setMode('graduate')}
+              className={`px-8 py-2 rounded-full text-sm font-medium transition-all ${mode === 'graduate' ? 'bg-primary shadow-lg shadow-primary/20 text-white' : 'text-foreground/60 hover:text-white'}`}
             >
-              Owner
+              Graduate
             </button>
             <button 
-              onClick={() => setMode('verifier')}
-              className={`px-8 py-2 rounded-full text-sm font-medium transition-all ${mode === 'verifier' ? 'bg-primary shadow-lg shadow-primary/20 text-white' : 'text-foreground/60 hover:text-white'}`}
+              onClick={() => setMode('employer')}
+              className={`px-8 py-2 rounded-full text-sm font-medium transition-all ${mode === 'employer' ? 'bg-primary shadow-lg shadow-primary/20 text-white' : 'text-foreground/60 hover:text-white'}`}
             >
-              Verifier
+              Employer
             </button>
           </div>
 
@@ -357,13 +369,13 @@ function App() {
       <div className="grid grid-cols-1 xl:grid-cols-[1fr,400px] gap-8 w-full max-w-7xl">
         {/* Main Interaction Area */}
         <main className="glass p-8 flex flex-col gap-8">
-          {mode === 'user' ? (
+          {mode === 'graduate' ? (
             <>
-              {/* User Steps */}
+              {/* Graduate Steps */}
               <div className="flex justify-between items-center px-4">
                 {[
                   { id: 'upload', icon: Upload },
-                  { id: 'extract', icon: User },
+                  { id: 'extract', icon: FileText },
                   { id: 'commit', icon: LockIcon },
                   { id: 'success', icon: CheckCircle2 },
                 ].map((s, idx) => (
@@ -381,8 +393,8 @@ function App() {
               {step === 'upload' && (
                 <div className="flex flex-col items-center text-center gap-6 py-8 animate-in">
                   <div className="space-y-2">
-                    <h2 className="text-2xl font-semibold text-white">Verify Your Identity</h2>
-                    <p className="text-foreground/60 max-w-md">Data is hashed locally on your device. Only a Zero-Knowledge Proof is sent to the network.</p>
+                    <h2 className="text-2xl font-semibold text-white">Register Your Credential</h2>
+                    <p className="text-foreground/60 max-w-md">Upload your diploma or transcript. Data is hashed locally — only a Zero-Knowledge Proof is sent to Midnight Network.</p>
                   </div>
                   
                   <label className="w-full max-w-md aspect-video border-2 border-dashed border-white/10 hover:border-primary/50 hover:bg-white/5 rounded-3xl flex flex-col items-center justify-center gap-4 cursor-pointer transition-all group">
@@ -390,7 +402,7 @@ function App() {
                     {isProcessing ? (
                       <div className="flex flex-col items-center gap-4">
                         <div className="w-12 h-12 border-4 border-primary border-t-transparent rounded-full animate-spin" />
-                        <span className="text-sm font-medium animate-pulse">Running Local OCR...</span>
+                        <span className="text-sm font-medium animate-pulse">Processing Credential...</span>
                       </div>
                     ) : (
                       <>
@@ -398,7 +410,7 @@ function App() {
                           <Upload className="w-8 h-8 text-foreground/40 group-hover:text-primary transition-all" />
                         </div>
                         <div className="flex flex-col items-center">
-                          <span className="font-medium text-white">Upload Identity Document</span>
+                          <span className="font-medium text-white">Upload Diploma or Transcript</span>
                           <span className="text-xs text-foreground/40 mt-1">Processed entirely in-browser</span>
                         </div>
                       </>
@@ -410,42 +422,46 @@ function App() {
               {step === 'extract' && (
                 <div className="flex flex-col gap-8 py-4 animate-in">
                   <div className="space-y-2">
-                    <h2 className="text-2xl font-semibold text-white">Review Extracted Data</h2>
-                    <p className="text-foreground/60">Audit your information before generating the cryptographic commitment.</p>
+                    <h2 className="text-2xl font-semibold text-white">Review Extracted Credential</h2>
+                    <p className="text-foreground/60">Verify your academic information before generating the cryptographic commitment.</p>
                   </div>
 
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <div className="space-y-2">
-                      <label className="text-xs font-bold uppercase tracking-widest text-foreground/40 ml-1">Full Name</label>
+                      <label className="text-xs font-bold uppercase tracking-widest text-foreground/40 ml-1">Institution</label>
                       <input 
                         className="w-full bg-white/5 border border-white/10 rounded-xl p-4 focus:ring-2 focus:ring-primary/20 outline-none text-white transition-all hover:bg-white/10"
-                        value={extractedData.name}
-                        onChange={(e) => setExtractedData({...extractedData, name: e.target.value})}
+                        value={extractedData.institution}
+                        onChange={(e) => setExtractedData({...extractedData, institution: e.target.value})}
                       />
                     </div>
                     <div className="space-y-2">
-                      <label className="text-xs font-bold uppercase tracking-widest text-foreground/40 ml-1">Date of Birth</label>
-                      <input 
-                        type="date"
+                      <label className="text-xs font-bold uppercase tracking-widest text-foreground/40 ml-1">Degree Type</label>
+                      <select 
                         className="w-full bg-white/5 border border-white/10 rounded-xl p-4 focus:ring-2 focus:ring-primary/20 outline-none text-white transition-all hover:bg-white/10"
-                        value={extractedData.dob}
-                        onChange={(e) => setExtractedData({...extractedData, dob: e.target.value})}
+                        value={extractedData.degreeType}
+                        onChange={(e) => setExtractedData({...extractedData, degreeType: e.target.value})}
+                      >
+                        {Object.keys(DEGREE_LEVELS).map(level => (
+                          <option key={level} value={level} className="bg-gray-900">{level}</option>
+                        ))}
+                      </select>
+                    </div>
+                    <div className="space-y-2">
+                      <label className="text-xs font-bold uppercase tracking-widest text-foreground/40 ml-1">Field of Study</label>
+                      <input 
+                        className="w-full bg-white/5 border border-white/10 rounded-xl p-4 focus:ring-2 focus:ring-primary/20 outline-none text-white transition-all hover:bg-white/10"
+                        value={extractedData.fieldOfStudy}
+                        onChange={(e) => setExtractedData({...extractedData, fieldOfStudy: e.target.value})}
                       />
                     </div>
                     <div className="space-y-2">
-                      <label className="text-xs font-bold uppercase tracking-widest text-foreground/40 ml-1">Country of Residence</label>
+                      <label className="text-xs font-bold uppercase tracking-widest text-foreground/40 ml-1">Graduation Year</label>
                       <input 
+                        type="number"
                         className="w-full bg-white/5 border border-white/10 rounded-xl p-4 focus:ring-2 focus:ring-primary/20 outline-none text-white transition-all hover:bg-white/10"
-                        value={extractedData.country}
-                        onChange={(e) => setExtractedData({...extractedData, country: e.target.value})}
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <label className="text-xs font-bold uppercase tracking-widest text-foreground/40 ml-1">ID Number</label>
-                      <input 
-                        className="w-full bg-white/5 border border-white/10 rounded-xl p-4 focus:ring-2 focus:ring-primary/20 outline-none text-white transition-all hover:bg-white/10"
-                        value={extractedData.idNumber}
-                        onChange={(e) => setExtractedData({...extractedData, idNumber: e.target.value})}
+                        value={extractedData.graduationYear}
+                        onChange={(e) => setExtractedData({...extractedData, graduationYear: e.target.value})}
                       />
                     </div>
                   </div>
@@ -454,7 +470,7 @@ function App() {
                     onClick={calculateHash}
                     className="w-full bg-primary hover:bg-primary/90 text-white font-bold p-5 rounded-xl shadow-lg shadow-primary/20 transition-all flex items-center justify-center gap-2"
                   >
-                    Generate Commitment <ChevronRight className="w-5 h-5" />
+                    Generate Credential Commitment <ChevronRight className="w-5 h-5" />
                   </button>
                 </div>
               )}
@@ -462,16 +478,16 @@ function App() {
               {step === 'commit' && (
                 <div className="flex flex-col items-center text-center gap-8 py-8 animate-in">
                   <div className="w-20 h-20 bg-primary/10 rounded-3xl border border-primary/20 flex items-center justify-center">
-                    <Fingerprint className="w-10 h-10 text-primary" />
+                    <Award className="w-10 h-10 text-primary" />
                   </div>
                   <div className="space-y-2">
-                    <h2 className="text-2xl font-semibold text-white">Your Identity Commitment</h2>
-                    <p className="text-foreground/60 max-w-md">This hash represents your identity. Copy and share it with verifiers to prove your attributes anonymously.</p>
+                    <h2 className="text-2xl font-semibold text-white">Your Credential Commitment</h2>
+                    <p className="text-foreground/60 max-w-md">This hash represents your verified credential. Share it with employers to prove your qualifications privately.</p>
                   </div>
 
                   <div className="relative w-full max-w-lg group">
                     <div className="w-full bg-black/40 border border-white/10 p-6 rounded-2xl font-mono text-primary text-sm break-all leading-relaxed pr-16 bg-gradient-to-r from-black/40 to-primary/5">
-                      {userHash}
+                      {credentialHash}
                     </div>
                     <button 
                         onClick={copyToClipboard}
@@ -486,7 +502,7 @@ function App() {
                     disabled={isProcessing}
                     className="w-full max-w-md bg-primary hover:bg-primary/90 text-white font-bold p-5 rounded-xl shadow-xl shadow-primary/20 disabled:opacity-50 transition-all"
                   >
-                    {isProcessing ? 'Generating Proof...' : 'Publish to Midnight Ledger'}
+                    {isProcessing ? 'Generating Proof...' : 'Publish to Midnight Network'}
                   </button>
                 </div>
               )}
@@ -497,27 +513,27 @@ function App() {
                     <CheckCircle2 className="w-14 h-14 text-green-500" />
                   </div>
                   <div className="space-y-4">
-                    <h2 className="text-4xl font-extrabold text-white tracking-tight">Identity Anchored</h2>
-                    <p className="text-foreground/60 max-sm text-lg">Your Zero-Knowledge Identity Pillar is now active. You can now prove your Age, Identity, and Residency to third parties.</p>
+                    <h2 className="text-4xl font-extrabold text-white tracking-tight">Credential Anchored</h2>
+                    <p className="text-foreground/60 max-sm text-lg">Your educational credential is now verified on Midnight Network. Employers can verify your degree without seeing your transcript.</p>
                   </div>
                   <div className="flex gap-4">
-                    <button onClick={() => setStep('upload')} className="px-10 py-4 bg-white/5 hover:bg-white/10 border border-white/10 rounded-2xl font-semibold text-white transition-all">New Profile</button>
-                    <button onClick={() => { setMode('verifier'); setVerifierHash(userHash); }} className="px-10 py-4 bg-primary text-white rounded-2xl font-bold shadow-xl shadow-primary/30 hover:scale-105 transition-all">Switch to Verifier</button>
+                    <button onClick={() => setStep('upload')} className="px-10 py-4 bg-white/5 hover:bg-white/10 border border-white/10 rounded-2xl font-semibold text-white transition-all">New Credential</button>
+                    <button onClick={() => { setMode('employer'); setVerifierHash(credentialHash); }} className="px-10 py-4 bg-primary text-white rounded-2xl font-bold shadow-xl shadow-primary/30 hover:scale-105 transition-all">Switch to Employer</button>
                   </div>
                 </div>
               )}
             </>
           ) : (
             <>
-              {/* Verifier Logic */}
+              {/* Employer Verification Logic */}
               <div className="flex flex-col gap-10 py-6 animate-in">
                 <div className="flex items-center gap-6">
                   <div className="p-5 bg-accent/20 rounded-2xl border border-accent/30">
                     <Search className="w-10 h-10 text-accent" />
                   </div>
                   <div className="space-y-1">
-                    <h2 className="text-2xl font-semibold text-white">Trustless Verification</h2>
-                    <p className="text-foreground/60">Validate claims without accessing PII.</p>
+                    <h2 className="text-2xl font-semibold text-white">Credential Verification</h2>
+                    <p className="text-foreground/60">Verify academic credentials without accessing transcripts.</p>
                   </div>
                 </div>
 
@@ -525,9 +541,9 @@ function App() {
                   {/* Select Verification Type */}
                   <div className="grid grid-cols-3 gap-3">
                     {[
-                      { id: 'age', label: 'AgeCheck', icon: Calendar },
-                      { id: 'identity', label: 'AuthCheck', icon: User },
-                      { id: 'residency', label: 'GeoCheck', icon: MapPin },
+                      { id: 'recency', label: 'Recency', icon: Calendar },
+                      { id: 'ownership', label: 'Ownership', icon: Award },
+                      { id: 'level', label: 'Degree Level', icon: BookOpen },
                     ].map(t => (
                         <button
                             key={t.id}
@@ -540,31 +556,31 @@ function App() {
                     ))}
                   </div>
 
-                  {vType === 'age' && (
+                  {vType === 'recency' && (
                     <div className="space-y-4 animate-in">
-                        <label className="text-xs font-bold text-foreground/30 uppercase tracking-widest ml-1">Minimum Age Requirement</label>
+                        <label className="text-xs font-bold text-foreground/30 uppercase tracking-widest ml-1">Maximum Years Since Graduation</label>
                         <div className="flex items-center gap-4">
                             <input 
                                 type="number" 
                                 className="w-24 bg-black/40 border border-white/10 rounded-xl p-4 text-white font-bold text-center outline-none focus:ring-2 focus:ring-accent/40"
-                                value={ageThreshold}
-                                onChange={(e) => setAgeThreshold(parseInt(e.target.value) || 0)}
+                                value={maxYearsAgo}
+                                onChange={(e) => setMaxYearsAgo(parseInt(e.target.value) || 0)}
                             />
-                            <span className="text-foreground/40 text-sm font-medium">Years Old</span>
+                            <span className="text-foreground/40 text-sm font-medium">Years Ago</span>
                         </div>
                     </div>
                   )}
 
-                  {vType === 'residency' && (
+                  {vType === 'level' && (
                     <div className="space-y-4 animate-in">
-                        <label className="text-xs font-bold text-foreground/30 uppercase tracking-widest ml-1">Required Country of Residence</label>
+                        <label className="text-xs font-bold text-foreground/30 uppercase tracking-widest ml-1">Minimum Degree Level Required</label>
                         <select 
                             className="w-full bg-black/40 border border-white/10 rounded-xl p-4 text-white font-bold outline-none focus:ring-2 focus:ring-accent/40"
-                            value={geoRequired}
-                            onChange={(e) => setGeoRequired(e.target.value)}
+                            value={requiredDegreeLevel}
+                            onChange={(e) => setRequiredDegreeLevel(e.target.value)}
                         >
-                            {Object.keys(COUNTRY_MAP).map(c => (
-                                <option key={c} value={c} className="bg-gray-900">{c}</option>
+                            {Object.keys(DEGREE_LEVELS).map(level => (
+                                <option key={level} value={level} className="bg-gray-900">{level}</option>
                             ))}
                         </select>
                     </div>
@@ -572,8 +588,8 @@ function App() {
 
                   <div className="space-y-2">
                     <div className="flex items-center justify-between text-sm font-bold uppercase tracking-widest text-foreground/40 ml-1">
-                        <span>User Proof Hash</span>
-                        <span className="text-[10px] text-accent font-normal normal-case italic">Shared by user</span>
+                        <span>Candidate Credential Hash</span>
+                        <span className="text-[10px] text-accent font-normal normal-case italic">Shared by graduate</span>
                     </div>
                     <textarea 
                         className={`w-full bg-black/40 border rounded-xl p-4 font-mono text-sm focus:ring-2 outline-none transition-all resize-none h-24 ${
@@ -583,7 +599,7 @@ function App() {
                         }`}
                         value={verifierHash}
                         onChange={(e) => { setVerifierHash(e.target.value); setVerifyStatus('idle'); }}
-                        placeholder="Paste user's identity hash here (0x...)"
+                        placeholder="Paste candidate's credential hash here (0x...)"
                     />
                     {verifierHash && !isValidHashFormat(verifierHash) && (
                       <p className="text-xs text-red-400 ml-1 flex items-center gap-1">
@@ -601,16 +617,16 @@ function App() {
                       {verifyStatus === 'checking' ? (
                         <>
                           <div className="w-6 h-6 border-4 border-white/30 border-t-white rounded-full animate-spin" />
-                          Consulting Local Ledger...
+                          Verifying on Midnight Network...
                         </>
-                      ) : `Verify ${vType.charAt(0).toUpperCase() + vType.slice(1)} Requirement`}
+                      ) : `Verify ${vType === 'recency' ? 'Graduation Recency' : vType === 'level' ? 'Degree Level' : 'Credential Ownership'}`}
                     </span>
                   </button>
 
                   {verifyStatus === 'verified' && (
                     <div className="flex items-center justify-center gap-4 p-6 bg-green-500/10 border border-green-500/30 rounded-2xl animate-in text-green-500 font-bold text-lg shadow-[0_0_30px_rgba(34,197,94,0.1)]">
-                      <ShieldCheck className="w-7 h-7" />
-                      CLAIM VALIDATED
+                      <GraduationCap className="w-7 h-7" />
+                      CREDENTIAL VERIFIED
                     </div>
                   )}
 
@@ -624,7 +640,7 @@ function App() {
 
                 <div className="p-6 bg-white/5 border-l-4 border-accent/20 rounded-r-2xl">
                   <p className="text-sm text-foreground/60 leading-relaxed">
-                    Verify that the user meets the <b>{vType.toUpperCase()}</b> criteria without ever seeing their personal registration data. 
+                    Verify that the candidate meets the <b>{vType === 'recency' ? 'GRADUATION RECENCY' : vType === 'level' ? 'DEGREE LEVEL' : 'CREDENTIAL OWNERSHIP'}</b> criteria without ever seeing their full academic transcript or GPA. 
                   </p>
                 </div>
               </div>
@@ -639,15 +655,15 @@ function App() {
             <div className="flex items-center justify-between">
                 <h3 className="text-xs font-bold uppercase tracking-widest text-foreground/40">Environment</h3>
                 <div className={`px-2 py-0.5 ${isMocked ? 'bg-orange-500/20 text-orange-500' : 'bg-green-500/20 text-green-500'} text-[10px] font-bold rounded uppercase`}>
-                  {isMocked ? 'Simulation' : 'Localhost'}
+                  {isMocked ? 'Simulation' : 'Midnight Network'}
                 </div>
             </div>
             <div className="space-y-4">
               {[
-                { label: 'Blockchain Node', status: isMocked ? 'Simulation' : 'Healthy', color: isMocked ? 'bg-orange-500' : 'bg-green-500' },
-                { label: 'Standalone Indexer', status: isMocked ? 'Local Storage' : 'Syncing', color: isMocked ? 'bg-orange-500' : 'bg-green-500' },
+                { label: 'Midnight Node', status: isMocked ? 'Simulation' : 'Connected', color: isMocked ? 'bg-orange-500' : 'bg-green-500' },
+                { label: 'Credential Indexer', status: isMocked ? 'Local Storage' : 'Syncing', color: isMocked ? 'bg-orange-500' : 'bg-green-500' },
                 { label: 'ZK Prover Engine', status: 'Available', color: 'bg-primary' },
-                { label: 'Identity Store', status: 'Encrypted', color: 'bg-white/10' },
+                { label: 'Credential Store', status: 'Encrypted', color: 'bg-white/10' },
               ].map(stack => (
                 <div key={stack.label} className="group cursor-default">
                   <div className="flex items-center justify-between text-sm mb-1">
@@ -667,7 +683,7 @@ function App() {
             <div className="terminal-header">
               <div className="flex items-center gap-2">
                 <TerminalIcon className="w-3 h-3" />
-                <span>Midnight SDK Debug</span>
+                <span>PrivateDiploma SDK Debug</span>
               </div>
               <div className="flex gap-1.5">
                 <div className="w-2.5 h-2.5 rounded-full bg-white/10" />

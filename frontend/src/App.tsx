@@ -39,7 +39,7 @@ function App() {
   const [hasCopied, setHasCopied] = useState(false);
 
   // Verifier State
-  const [verifierHash, setVerifierHash] = useState('0x7a2d48bf6e9a4c12d00d2f8e9a4c12d00d2');
+  const [verifierHash, setVerifierHash] = useState('');
   const [vType, setVType] = useState<VerificationType>('age');
   const [verifyStatus, setVerifyStatus] = useState<'idle' | 'checking' | 'verified' | 'failed'>('idle');
   const [ageThreshold, setAgeThreshold] = useState(18);
@@ -62,6 +62,12 @@ function App() {
 
   const addLog = (msg: string) => {
     setLogs(prev => [...prev, `[${new Date().toLocaleTimeString()}] ${msg}`]);
+  };
+
+  // Helper to check if hash is valid format
+  const isValidHashFormat = (hash: string): boolean => {
+    const hexPattern = /^0x[0-9a-fA-F]{64}$/;
+    return hexPattern.test(hash.trim());
   };
 
   const connectWallet = async () => {
@@ -195,10 +201,31 @@ function App() {
     }
   };
   const handleVerify = async () => {
-    setVerifyStatus('checking');
-    addLog(`Verifier: Initiating [${vType.toUpperCase()}] verification for hash ${verifierHash.substring(0, 10)}...`);
+    // Input validation - MUST validate before ANY processing
+    const trimmedHash = verifierHash.trim();
     
-    if (deployedAddress) {
+    // Check if hash is empty
+    if (!trimmedHash) {
+      setVerifyStatus('failed');
+      addLog('❌ Verification Error: No hash provided. Please paste a valid commitment hash.');
+      return;
+    }
+    
+    // Validate hash format: must be 0x followed by 64 hex characters (32 bytes)
+    const hexPattern = /^0x[0-9a-fA-F]{64}$/;
+    if (!hexPattern.test(trimmedHash)) {
+      setVerifyStatus('failed');
+      addLog('❌ Verification Error: Invalid hash format.');
+      addLog('   Expected: 0x + 64 hexadecimal characters (e.g., 0x7a2d48bf...)');
+      addLog(`   Received: "${trimmedHash.substring(0, 30)}${trimmedHash.length > 30 ? '...' : ''}"`);
+      return;
+    }
+    
+    setVerifyStatus('checking');
+    addLog(`Verifier: Initiating [${vType.toUpperCase()}] verification for hash ${trimmedHash.substring(0, 16)}...`);
+    
+    // REAL ZK PROOF PATH (with Lace Wallet connected)
+    if (deployedAddress && kycSecret) {
         addLog(`Midnight Prover: Generating Zero-Knowledge Proof of Eligibility...`);
         try {
             const walletAddressBytes = new Uint8Array(32); // Mock for demo
@@ -214,34 +241,69 @@ function App() {
             }
             
             setVerifyStatus('verified');
-            addLog(`Success: ZK Proof verified on-chain! Identity is ${vType === 'age' ? 'age-eligible' : 'residency-cleared'}.`);
+            addLog(`✅ Success: ZK Proof verified on-chain! Identity is ${vType === 'age' ? 'age-eligible' : 'residency-cleared'}.`);
             return;
         } catch (err: any) {
-            addLog(`Error: ZK Proof generation/verification failed. ${err.message}`);
+            addLog(`❌ Error: ZK Proof generation/verification failed. ${err.message}`);
             setVerifyStatus('failed');
             return;
         }
     }
 
-    addLog('Verifier: Consulting Local Midnight Ledger index (Simulation)...');
+    // SIMULATION PATH (when wallet not connected)
+    addLog('⚠️ Simulation Mode: Consulting Local Ledger (NOT on blockchain)...');
     setTimeout(() => {
-      // CHECK AGAINST SIMULATED LEDGER
+      // Step 1: Check if hash exists in ledger
       const ledger = JSON.parse(localStorage.getItem('midnight_sim_ledger') || '[]');
-      const isRegistered = ledger.includes(verifierHash.trim());
-      const isCurrentSession = verifierHash.trim().toLowerCase() === userHash.trim().toLowerCase();
+      const isRegistered = ledger.includes(trimmedHash);
+      const isCurrentSession = trimmedHash.toLowerCase() === userHash.trim().toLowerCase();
 
-      if (isRegistered || isCurrentSession) {
-        setVerifyStatus('verified');
-        if (vType === 'age') {
-            addLog(`Verification Success: Zero-Knowledge proof confirms user satisfies the ${ageThreshold}+ requirement.`);
-        } else if (vType === 'identity') {
-            addLog(`Verification Success: Ownership confirmed via Proof of Private Key possession.`);
-        } else if (vType === 'residency') {
-            addLog(`Verification Success: Residency eligibility confirmed for ${geoRequired} via GeoCheck.`);
-        }
-      } else {
+      if (!isRegistered && !isCurrentSession) {
         setVerifyStatus('failed');
-        addLog('Verification Error: Commitment mismatch. This hash is not registered on the ledger.');
+        addLog('❌ Verification Failed: Hash not found in ledger. User has not registered this identity.');
+        return;
+      }
+
+      // Step 2: Hash exists - now verify the ACTUAL requirements
+      // In simulation, we can only verify if this is the current session user
+      if (isCurrentSession) {
+        // We have access to extractedData for current session
+        let requirementMet = false;
+        
+        if (vType === 'age') {
+          const birthYear = new Date(extractedData.dob).getFullYear();
+          const currentYear = new Date().getFullYear();
+          const userAge = currentYear - birthYear;
+          requirementMet = userAge >= ageThreshold;
+          
+          if (requirementMet) {
+            addLog(`✅ Simulation Success: User age (${userAge}) meets ${ageThreshold}+ requirement.`);
+            addLog(`   Note: In REAL mode, age would be hidden via Zero-Knowledge Proof.`);
+          } else {
+            addLog(`❌ Verification Failed: User age (${userAge}) does not meet ${ageThreshold}+ requirement.`);
+          }
+        } else if (vType === 'identity') {
+          requirementMet = true; // Identity check just confirms ownership
+          addLog(`✅ Simulation Success: Identity ownership confirmed.`);
+          addLog(`   Note: In REAL mode, this uses cryptographic proof of private key.`);
+        } else if (vType === 'residency') {
+          requirementMet = extractedData.country === geoRequired;
+          
+          if (requirementMet) {
+            addLog(`✅ Simulation Success: User residence (${extractedData.country}) matches requirement (${geoRequired}).`);
+            addLog(`   Note: In REAL mode, country would be hidden via Zero-Knowledge Proof.`);
+          } else {
+            addLog(`❌ Verification Failed: User residence (${extractedData.country}) does not match requirement (${geoRequired}).`);
+          }
+        }
+        
+        setVerifyStatus(requirementMet ? 'verified' : 'failed');
+      } else {
+        // Hash is in ledger but not current session - we can't verify requirements in simulation
+        setVerifyStatus('failed');
+        addLog('❌ Simulation Limitation: Cannot verify requirements for non-current session users.');
+        addLog('   Connect Lace Wallet for REAL Zero-Knowledge Proof verification.');
+        addLog('   In real mode, verifier would receive cryptographic proof without seeing private data.');
       }
     }, 2500);
   };
@@ -508,17 +570,27 @@ function App() {
                     </div>
                   )}
 
-                  <div className="space-y-4">
+                  <div className="space-y-2">
                     <div className="flex items-center justify-between text-sm font-bold uppercase tracking-widest text-foreground/40 ml-1">
                         <span>User Proof Hash</span>
                         <span className="text-[10px] text-accent font-normal normal-case italic">Shared by user</span>
                     </div>
                     <textarea 
-                        className="w-full bg-black/40 border border-white/10 rounded-xl p-4 font-mono text-sm text-primary focus:ring-2 focus:ring-primary/20 outline-none transition-all resize-none h-24"
+                        className={`w-full bg-black/40 border rounded-xl p-4 font-mono text-sm focus:ring-2 outline-none transition-all resize-none h-24 ${
+                          verifierHash && !isValidHashFormat(verifierHash) 
+                            ? 'border-red-500/50 text-red-400 focus:ring-red-500/20' 
+                            : 'border-white/10 text-primary focus:ring-primary/20'
+                        }`}
                         value={verifierHash}
                         onChange={(e) => { setVerifierHash(e.target.value); setVerifyStatus('idle'); }}
                         placeholder="Paste user's identity hash here (0x...)"
                     />
+                    {verifierHash && !isValidHashFormat(verifierHash) && (
+                      <p className="text-xs text-red-400 ml-1 flex items-center gap-1">
+                        <ShieldAlert className="w-3 h-3" />
+                        Invalid format. Expected: 0x + 64 hex characters
+                      </p>
+                    )}
                   </div>
 
                   <button 

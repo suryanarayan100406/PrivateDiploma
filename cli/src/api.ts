@@ -97,11 +97,11 @@ export const createWalletAndMidnightProvider = async (
 ): Promise<WalletProvider & MidnightProvider> => {
   logger.info('Creating Midnight and Wallet providers');
   return {
-    async getCoinPublicKey() {
+    async getCoinPublicKey(): Promise<string> {
         const state = await ctx.wallet.state().toPromise();
         return state!.shielded.coinPublicKey.toHexString();
     },
-    async getEncryptionPublicKey() {
+    async getEncryptionPublicKey(): Promise<string> {
         const state = await ctx.wallet.state().toPromise();
         return state!.shielded.encryptionPublicKey.toHexString();
     },
@@ -187,10 +187,10 @@ export const proveIdentity = async (kycContract: any, secret: Uint8Array): Promi
     return finalizedTxData.public;
 };
 
-export const proveAge = async (kycContract: any, birthYear: number, secret: Uint8Array): Promise<FinalizedTxData> => {
+export const proveAge = async (kycContract: any, birthYear: number, minAge: number, secret: Uint8Array): Promise<FinalizedTxData> => {
     const currentYear = new Date().getFullYear();
-    logger.info({ birthYear, currentYear }, 'Calling prove_age_eligible() circuit');
-    const finalizedTxData = await kycContract.callTx.prove_age_eligible(currentYear, birthYear, secret);
+    logger.info({ birthYear, currentYear, minAge }, 'Calling prove_age_eligible() circuit');
+    const finalizedTxData = await kycContract.callTx.prove_age_eligible(currentYear, birthYear, minAge, secret);
     logger.info({ txHash: finalizedTxData.public.txHash }, 'prove_age_eligible() tx finalized');
     return finalizedTxData.public;
 };

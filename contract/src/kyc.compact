@@ -4,41 +4,45 @@ import CompactStandardLibrary;
 
 /**
  * The on-chain fingerprint of the identity.
- * This is all that anyone can see on the public blockchain.
  */
 export ledger kyc_commitment: Bytes<32>;
 
 /**
  * Step 1: Registration
- * This takes a 32-byte commitment (a hash of all your private data)
- * and publishes it to the blockchain.
  */
 export circuit register(commitment: Bytes<32>): [] {
     kyc_commitment = disclose(commitment);
 }
 
 /**
- * Step 2: Verification (Zero-Knowledge Proof)
- * This circuit allows a user to PROVE they are the owner of the record
- * by providing the "secret" that was used to create the commitment.
+ * Step 2: Full Identity Ownership Proof
  */
 export circuit prove_identity(secret: Bytes<32>): [] {
-    // The contract hashes the provided 'secret' and checks if it matches
-    // the fingerprint stored on-chain.
-    // If this fails, the math simply won't work, and NO proof is generated.
     assert(kyc_commitment == persistentHash<Bytes<32>>(secret), "Identity verification failed: Secret does not match commitment");
 }
 
 /**
- * Step 3: Selective Disclosure (Advanced)
- * Prove you are above a certain age without revealing your birth year.
+ * Step 3: Dynamic Age Eligibility Proof
  */
-export circuit prove_age_eligible(current_year: Uint<16>, birth_year: Uint<32>, secret: Bytes<32>): [] {
-    // In a real system, the commitment would be H(birth_year, secret).
-    // Here we check:
-    // 1. Does the math still match the fingerprint?
+export circuit prove_age_eligible(current_year: Uint<16>, birth_year: Uint<32>, min_age: Uint<16>, secret: Bytes<32>): [] {
     assert(kyc_commitment == persistentHash<Bytes<32>>(secret), "Identity mismatch");
-    
     const cy32 = current_year as Uint<32>;
-    assert(cy32 - birth_year >= 18, "Underage: Access Denied");
+    const min32 = min_age as Uint<32>;
+    assert(cy32 - birth_year >= min32, "Age Requirement Not Met: Access Denied");
+}
+
+/**
+ * Step 4: Residency Verification
+ * country_code: 1 for US, 2 for UK, etc. (Simulated mapping)
+ */
+export circuit prove_residency(required_country: Uint<16>, user_country: Uint<16>, secret: Bytes<32>): [] {
+    assert(kyc_commitment == persistentHash<Bytes<32>>(secret), "Identity mismatch");
+    assert(user_country == required_country, "Residency Blocked: Country does not match requirements");
+}
+
+/**
+ * Step 5: Generic Verification (The "Check" side)
+ */
+export circuit verify_claim(claimed_hash: Bytes<32>): [] {
+    assert(kyc_commitment == claimed_hash, "Verification Failed: On-chain identity does not match provided proof");
 }

@@ -60,6 +60,28 @@ PrivateDiploma uses **Zero-Knowledge Proofs** on the **Midnight Network** to:
 
 ---
 
+
+## Contract Address
+
+The deployed PrivateDiploma contract address is required for credential verification and proof operations.
+
+**Current Testnet Contract Address:**
+
+```
+<INSERT_DEPLOYED_CONTRACT_ADDRESS_HERE>
+```
+
+> Replace `<INSERT_DEPLOYED_CONTRACT_ADDRESS_HERE>` with your actual deployed contract address after running the registration flow or deploying via CLI/SDK. The contract address is returned by the `registerCredential` function in the API and shown in the browser/CLI logs after deployment.
+
+**How to Find the Contract Address:**
+- When you register a credential (via browser or CLI), the contract address is returned in the result object and printed in the logs.
+- You can also query the blockchain indexer for deployed contracts if needed.
+
+**Where to Use:**
+- Pass this address to all verification/proof functions (e.g., `proveGraduationRecency`, `proveDegreeLevel`, etc.).
+
+---
+
 ## Quick Start
 
 ### Prerequisites

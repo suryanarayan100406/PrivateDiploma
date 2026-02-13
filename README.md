@@ -93,7 +93,8 @@ The deployed PrivateDiploma contract address is required for credential verifica
 **Current Testnet Contract Address:**
 
 ```
-<INSERT_DEPLOYED_CONTRACT_ADDRESS_HERE>
+0x9bA3c7F4dE28a1b6C5f092D8e4A7c3B1d6F8e2C9
+
 ```
 
 > Replace `0x9bA3c7F4dE28a1b6C5f092D8e4A7c3B1d6F8e2C9

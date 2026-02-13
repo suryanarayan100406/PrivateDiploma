@@ -103,6 +103,8 @@ The deployed PrivateDiploma contract address is required for credential verifica
 **How to Find the Contract Address:**
 - When you register a credential (via browser or CLI), the contract address is returned in the result object and printed in the logs.
 - You can also query the blockchain indexer for deployed contracts if needed.
+- <img width="956" height="508" alt="image" src="https://github.com/user-attachments/assets/1cf7b86e-91d9-4ed4-8928-811519f8da0e" />
+
 
 **Where to Use:**
 - Pass this address to all verification/proof functions (e.g., `proveGraduationRecency`, `proveDegreeLevel`, etc.).
